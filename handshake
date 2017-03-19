@@ -38,7 +38,7 @@ fi
 # now source it, either the original or the filtered variant
 source "$configfile"
 
-##################################### Script Configuration
+##################################### Some global vars
 script_name="${0##*/}"
 tempdir="/tmp/${script_name}"
 CSVDB=dump-01.csv
@@ -54,7 +54,6 @@ cafe="\033[0;33m"
 fiuscha="\033[0;35m"
 transparent="\e[0m"
 
-##################################### Windows
 VENTSCAN="-geometry 95x56-0+0"
 VENTHAND="-geometry 95x20-0+0"
 VENTDEAU="-geometry 80x20-0-30"
@@ -62,7 +61,7 @@ VENTDEAU="-geometry 80x20-0-30"
 ##################################### Usage: if confirm "Are you sure? "; then ...
 confirm() { local ans IFS=; while read -rp "$1" -n1 ans; do printf '\n'; case $ans in ''|[Yy]) return 0;; [Nn]) return 1;; esac; done; };
 
-##################################### Mata los procesos usados por el script
+##################################### Kill process used by script and restore WIFI adapter mode
 function exitmode {
     clear
     top
@@ -84,7 +83,7 @@ function exitmode {
 }
 trap exitmode SIGINT SIGHUP
 
-##################################### Cabecera ASCII
+##################################### Top
 function top {
     echo -en "\e[3J"
     echo
@@ -398,37 +397,20 @@ function check_handshake {
 
 ##################################### Run as Root
 if [[ $EUID -ne 0 ]]; then
-    echo -e "Run as Root."
+    echo -e "use: sudo ${script_name}"
     exit 1
 fi
 
-##################################### Crea las carpetas de trabajo
+##################################### Create dirs
 if [ ! -d $tempdir ]; then mkdir -p $tempdir &>/dev/null; fi
 if [ ! -d $handshakes_dir ]; then mkdir -p $handshakes_dir &>/dev/null; fi
 
-##################################### Title
+##################################### Capture menu
 clear
 top
 select_interface
 select_scan_mode
 select_router
-
-#~ if exist_handshake "$Host_MAC" "$Host_SSID"; then
-    #~ Handshake_statuscheck="${green}Handshake Found.${transparent}"
-    #~ clear
-    #~ top
-    #~ info_router
-    #~ if confirm "A good handshake for ${Host_SSID} already exist, use it? (Y/n): "; then
-        #~ exitmode
-    #~ else
-        #~ rm "$handshakes_dir/$Host_MAC.cap"
-    #~ fi
-#~ fi
-
-#~ Handshake_statuscheck="${red}None or Invalid handshake.${transparent}"
-#~ clear
-#~ top
-#~ info_router
 
 while [ 1 ]; do
     clear
