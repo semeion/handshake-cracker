@@ -1,0 +1,128 @@
+# Load John config
+.include "/etc/john/john.conf"
+
+[List.Rules:MyExtra]
+# Very slow stuff... xxxx...xxxxxx9999
+>3 <7 l Az"[1-90][0-9][0-9][0-9]" <+
+
+[List.Rules:MyCustom]
+# Delete all spaces from the word
+@?w Q
+@- @! @, @. @_ @+ @' Q
+
+# suffix
+-[:c] >4 (?a \p1[u] Az"123" <+
+-[:c] >4 (?a \p1[u] Az"321" <+
+-[:c] >5 (?a \p1[lu] Az"1234" <+
+-[:c] (?a \p1[lu] Az"12345" <+
+-[:c] (?a \p1[lu] Az"123123" <+
+-[:c] >4 (?a \p1[u] Az"171" <+
+-[:c] >4 (?a \p1 Az"$$$" [lu] <+
+-[:c] >4 (?a \p1 Az"dez" [lu] <+
+-[:c] >4 (?a \p1 Az"mil" [lu] <+
+-[:c] >4 (?a \p1 Az"fdp" [lu] <+
+-[:c] >4 (?a \p1 Az"gay" [lu] <+
+-[:c] <- (?\p1[za] \p1[lu] Az"[jJ][rR]"
+
+-[:c] @- @! @, @. @_ @+ @' Q >4 (?a \p1[lu] Az"123" <+
+-[:c] @- @! @, @. @_ @+ @' Q >5 (?a \p1[lu] Az"1234" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] Az"12345" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] Az"[0-9]\0" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] Az"[0-9]\0\0" <+
+
+# prefix
+-[:c] (?a \p1[lu] A0"123" <+
+-[:c] (?a \p1[lu] A0"321" <+
+-[:c] (?a \p1[lu] A0"1234" <+
+-[:c] (?a \p1[lu] A0"4321" <+
+-[:c] (?a \p1[lu] A0"12345" <+
+-[:c] (?a \p1[lu] A0"123123" <+
+-[:c] (?a \p1[lu] A0"[0-9]\0" <+
+-[:c] (?a \p1[lu] A0"[0-9]\0\0" <+
+
+-[:c] <9 (?a \p1[lc] A0"[dD]r"
+-[:c] (?a \p1[lu] A0"[sS][rR]"
+-[:c] (?a \p1[lu] A0"[sS]ra"
+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"123" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"1234" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"12345" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"[0-9]\0" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"[0-9]\0\0" <+
+
+# prefix and suffix
+-[:c] (?a \p1[lu] A0"123" Az"123" <+
+-[:c] (?a \p1[lu] A0"1234" Az"1234" <+
+-[:c] (?a \p1[lu] A0"321" Az"321" <+
+-[:c] (?a \p1[lu] A0"4321" Az"4321" <+
+-[:c] (?a \p1[lu] A0"[0-9]\0\0" Az"\0\0\0" <+
+-[:c] (?a \p1[lu] A0"[a-z]" Az"123" <+
+-[:c] (?a \p1[lu] A0"[A-Z]" Az"123" <+
+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"123" Az"123" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"1234" Az"1234" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"12345" Az"12345" <+
+-[:c] @- @! @, @. @_ @+ @' Q (?a \p1[lu] A0"[0-9]\0\0" Az"\0\0\0" <+
+
+-[:c] (?a \p1[lu] A0"[sS][rR]" Az"123" <+
+-[:c] (?a \p1[lu] A0"[sS][rR]." Az"123" <+
+-[:c] (?a \p1[lu] A0"[sS]ra" Az"123" <+
+-[:c] (?a \p1[lu] A0"[sS]ra." Az"123" <+
+-[:c] (?a \p1[lc] A0"[dD]r" Az"123" <+
+-[:c] (?a \p1[lc] A0"[dD]r." Az"123" <+
+
+# truncate in 8
+(?a >8 [lu] '8 Q
+
+# truncate in 9 and lowercase
+(?a >9 [lu] '9 l Q
+
+# like before, but putting a number/symbol in middle
+(?a <7 $[0-9x_/-!@#$%^&*=+] d ] >7 [lu]
+
+# like before, but putting 123 in middle
+(?a <7 Az"123" d ]]] >7 [lu]
+
+# like before, but putting 321 in middle
+(?a <7 Az"321" d ]]] >7 [lu]
+
+# like before, but putting 1234 in middle
+(?a <7 Az"1234" d ]]]] >7 [lu]
+
+# like before, but putting 4321 in middle
+(?a <7 Az"4321" d ]]]] >7 [lu]
+
+# The following are some 3l33t rules
+-[:c] l /[aelos] s\0\p[43105] (?\p1[za] \p1[:c]
+-[:c] l /a /[elos] sa4 s\0\p[3105] (?\p1[za] \p1[:c]
+-[:c] l /e /[los] se3 s\0\p[105] (?\p1[za] \p1[:c]
+-[:c] l /l /[os] sl1 s\0\p[05] (?\p1[za] \p1[:c]
+-[:c] l /o /s so0 ss5 (?\p1[za] \p1[:c]
+-[:c] l /a /e /[los] sa4 se3 s\0\p[105] (?\p1[za] \p1[:c]
+-[:c] l /a /l /[os] sa4 sl1 s\0\p[05] (?\p1[za] \p1[:c]
+-[:c] l /a /o /s sa4 so0 ss5 (?\p1[za] \p1[:c]
+-[:c] l /e /l /[os] se3 sl1 s\0\p[05] (?\p1[za] \p1[:c]
+-[:c] l /[el] /o /s s\0\p[31] so0 ss5 (?\p1[za] \p1[:c]
+-[:c] l /a /e /l /[os] sa4 se3 sl1 s\0\p[05] (?\p1[za] \p1[:c]
+-[:c] l /a /[el] /o /s sa4 s\0\p[31] so0 ss5 (?\p1[za] \p1[:c]
+-[:c] l /e /l /o /s se3 sl1 so0 ss5 (?\p1[za] \p1[:c]
+-[:c] l /a /e /l /o /s sa4 se3 sl1 so0 ss5 (?\p1[za] \p1[:c]
+
+# inc. 1 per 1 toggle case (slow)...
+-c T[1-9A-E] Q M l Tm Q C Q u Q l Q c Q X0z0 'l Az"[0-9]"
+-c <+ )?l l Tm Az"[0-9]"
+-c T[1-9A-E] Q M l Tm Q C Q u Q l Q c Q X0z0 'l Az"[1-9][0-9]"
+-c <+ )?l l Tm Az"[1-9][0-9]"
+
+# My own setup
+[List.Rules:My]
+.include [List.Rules:Jumbo]
+.include [List.Rules:MyCustom]
+.include [List.Rules:MyExtra]
+
+# Incremental modes
+[Incremental:Digits8]
+File = /usr/share/john/digits.chr
+MinLen = 8
+MaxLen = 8
+CharCount = 10

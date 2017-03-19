@@ -18,6 +18,24 @@ for c in "${dependencies[@]}"; do
     fi
 done
 
+[[ ! -d "$HOME/.john" ]] && mkdir -P "$HOME/.john" &>/dev/null
+
+if [ ! -f "$HOME/.john/john.conf" ]; then
+	if ! cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null; then
+		echo "/etc/john/john.conf.custom not found"
+		exit 1
+	fi
+else
+    if [ ! -f "$HOME/.john/john.conf.backup" ]; then
+        if cp "$HOME/.john/john.conf" "$HOME/.john/john.conf.backup" &>/dev/null; then
+            if ! cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null; then
+                echo "/etc/john/john.conf.custom not found"
+                exit 1
+            fi
+        fi
+    fi
+fi
+	
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
 [[ "$XDG_CONFIG_HOME" ]] || XDG_CONFIG_HOME="$HOME/.config"
 configdir="$XDG_CONFIG_HOME/handshake-cracker"
