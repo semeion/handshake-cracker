@@ -18,7 +18,7 @@ for c in "${dependencies[@]}"; do
     fi
 done
 
-[[ ! -d "$HOME/.john" ]] && mkdir -P "$HOME/.john" &>/dev/null
+[[ ! -d "$HOME/.john" ]] && mkdir -p "$HOME/.john" &>/dev/null
 
 if [ -f "/etc/john/john.conf.custom" ]; then
     if [ ! -f "$HOME/.john/john.conf.backup" ]; then
