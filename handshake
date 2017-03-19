@@ -20,7 +20,7 @@ done
 
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
 configdir="${HOME}/.config/handshake-cracker"
-[[ "$SUDO_USER" ]] && configdir="/home/$SUDO_USER/.config"
+[[ "$SUDO_USER" ]] && configdir="/home/$SUDO_USER/.config/handshake-cracker"
 configfile="$configdir/scripts.conf"
 if [ ! -f "$configfile" ]; then
 	echo "Run the 'crack' script to create the config file: $configfile"
