@@ -236,14 +236,14 @@ function select_router {
     if ps -A | grep -q mdk3; then killall mdk3; fi
     clear
     top
-    local LINEAS_WIFIS_CSV=`wc -l $tempdir/$CSVDB | awk '{print $1}'`
-    if [ "$LINEAS_WIFIS_CSV" -le 3 ]; then
-        clear
-        rm -rf $tempdir/*
-        echo "select_router - LINEAS_WIFIS_CSV - && break"
-        sleep 8
-        exitmode
-    fi
+    #~ local LINEAS_WIFIS_CSV=`wc -l $tempdir/$CSVDB | awk '{print $1}'`
+    #~ if [ "$LINEAS_WIFIS_CSV" -le 3 ]; then
+        #~ clear
+        #~ rm -rf $tempdir/*
+        #~ echo "select_router - LINEAS_WIFIS_CSV - && break"
+        #~ sleep 8
+        #~ exitmode
+    #~ fi
 
     local wifionap=`cat "$tempdir/$CSVDB" | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
     local wifionap=`expr $wifionap - 1`
