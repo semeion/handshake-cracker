@@ -2,7 +2,7 @@
 # Maintainer: Alexandre Bolelli <semeion7@hotmail.com>
 
 pkgname=handshake-cracker
-pkgver=2.396882a
+pkgver=3.d05d801
 pkgrel=1
 pkgdesc="Handshake capture with aircrack-ng, test with pyrit, crack with john the ripper using self-builted wordlists."
 arch=('any')
@@ -11,7 +11,6 @@ license=('GPL3')
 depends=('aircrack-ng' 'pyrit' 'scapy' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
          'coreutils' 'glibc' 'sed' 'gzip' 'bzip2' 'unzip' 'wget' 'sudo' 'less' 'john')
 makedepends=('git')
-#~ backup=(etc/john/john.conf)
 source=('git+https://github.com/semeion/handshake-cracker.git')
 sha256sums=('SKIP') # use 'updpkgsums' if you want
 
@@ -31,6 +30,6 @@ package()
     install -D -m755 handshake "${pkgdir}/usr/bin/handshake"
     install -D -m755 wordlist "${pkgdir}/usr/bin/wordlist"
 
-    # Install john config file
+    # Install john config with custom rules
     install -D -m644 john.conf.custom "${pkgdir}/etc/john/john.conf.custom"
 }

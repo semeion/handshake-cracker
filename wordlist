@@ -17,8 +17,7 @@ for c in "${dependencies[@]}"; do
 done
 
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
-[[ "$XDG_CONFIG_HOME" ]] || XDG_CONFIG_HOME="$HOME/.config"
-configdir="$XDG_CONFIG_HOME/handshake-cracker"
+configdir="${HOME}/.config/handshake-cracker"
 configfile="$configdir/scripts.conf"
 if [ ! -f "$configfile" ]; then
 	echo "Run the 'crack' script to create the config file: $configfile"

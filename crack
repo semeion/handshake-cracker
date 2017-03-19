@@ -35,19 +35,18 @@ else
         fi
     fi
 fi
-	
-[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
-[[ "$XDG_CONFIG_HOME" ]] || XDG_CONFIG_HOME="$HOME/.config"
-configdir="$XDG_CONFIG_HOME/handshake-cracker"
-[[ ! -d "$configdir" ]] && mkdir -p "$configdir" &>/dev/null
 
+[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
+configdir="${HOME}/.config/handshake-cracker"
+[[ ! -d "$configdir" ]] && mkdir -p "$configdir" &>/dev/null
 configfile="$configdir/scripts.conf"
+
 if [ ! -f "$configfile" ]; then
 echo "\
-handshakes_dir=${HOME}/Shared/handshakes             # Handshakes directory - used by crack
-sessions_dir=${HOME}/Shared/crack-sessions           # Script work directory - used by crack
-wordlist_dir=${HOME}/Shared/wordlists                # Directory to save wordlists - used by wordlist
-wordlist=${HOME}/Shared/wordlists/wordlist.dic       # Password file - used by crack/wordlist
+handshakes_dir=${configdir}/handshakes               # Handshakes directory - used by crack
+sessions_dir=${configdir}/crack-sessions             # Script work directory - used by crack
+wordlist_dir=${configdir}/wordlists                  # Directory to save wordlists - used by wordlist
+wordlist=${configdir}/wordlists/wordlist.dic         # Password file - used by crack/wordlist
 maxlength=50                                         # Max length of words to be used from wordlist - used by crack
 john_incr=Digits8                                    # John incremental mode to be used - used by crack
 john_rule=My                                         # John rule to be used - used by crack
