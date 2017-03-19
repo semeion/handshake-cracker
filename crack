@@ -20,21 +20,15 @@ done
 
 [[ ! -d "$HOME/.john" ]] && mkdir -P "$HOME/.john" &>/dev/null
 
-if [ ! -f "$HOME/.john/john.conf" ]; then
-	if ! cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null; then
-		echo "/etc/john/john.conf.custom not found"
-		exit 1
-	fi
-else
+if [ -f "/etc/john/john.conf.custom" ]; then
     if [ ! -f "$HOME/.john/john.conf.backup" ]; then
-        if cp "$HOME/.john/john.conf" "$HOME/.john/john.conf.backup" &>/dev/null; then
-            if ! cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null; then
-                echo "/etc/john/john.conf.custom not found"
-                exit 1
-            fi
-        fi
+        cp "$HOME/.john/john.conf" "$HOME/.john/john.conf.backup" &>/dev/null
+        cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null
     fi
-fi
+else
+    echo "/etc/john/john.conf.custom not found"
+    exit 1
+fi    
 
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
 configdir="${HOME}/.config/handshake-cracker"
