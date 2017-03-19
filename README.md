@@ -17,7 +17,7 @@ Manual installation
 2) Copy the file john.conf.custom to /etc/john/john.conf.custom
 3) Install in the system all necessary dependencies (if they are not installed)
 4) Run the program with:
-   $ ./crack
+   ./crack
 
 
 Installation on arch linux
@@ -25,11 +25,11 @@ Installation on arch linux
 
 If you are using Arch Linux (Manjaro, BlackArch, etc) do not need to install manually, copy the PKGBUILD file to a directory in your HOME folder and run:
 
-   $ makepkg -sri
+   makepkg -sri
 
 To uninstall run:
 
-   # pacman -Rcns handshake-cracker
+   pacman -Rcns handshake-cracker
 
 
 Configuring
@@ -74,7 +74,7 @@ Http://www.openwall.com/mirrors/
 
 After downloading the desired language, you can use a command like this to make your dictionary customized for your language:
 
-   $ zcat passwords/* languages/English/3-large/* languages/English/4-extra/* | grep -v '^#!comment:' | unique English.lst
+   zcat passwords/* languages/English/3-large/* languages/English/4-extra/* | grep -v '^#!comment:' | unique English.lst
 
 You can get more information on this post:
 Http://www.openwall.com/lists/john-users/2007/06/05/2
