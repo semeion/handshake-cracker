@@ -16,8 +16,9 @@ for c in "${dependencies[@]}"; do
     fi
 done
 
+home="$(eval echo ~${SUDO_USER})"
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
-configdir="${HOME}/.config/handshake-cracker"
+configdir="${home}/.config/handshake-cracker"
 configfile="$configdir/scripts.conf"
 if [ ! -f "$configfile" ]; then
 	echo "Run the 'crack' script to create the config file: $configfile"

@@ -18,14 +18,15 @@ for c in "${dependencies[@]}"; do
     fi
 done
 
-[[ ! -d "$HOME/.john" ]] && mkdir -p "$HOME/.john" &>/dev/null
+home="$(eval echo ~${SUDO_USER})"
+[[ ! -d "$home/.john" ]] && mkdir -p "$home/.john" &>/dev/null
 
 if [ -f "/etc/john/john.conf.custom" ]; then
-    if [ ! -f "$HOME/.john/john.conf.backup" ]; then
-        if cp "$HOME/.john/john.conf" "$HOME/.john/john.conf.backup" &>/dev/null; then
-            echo "$HOME/.john/john.conf saved to $HOME/.john/john.conf.backup"
+    if [ ! -f "$home/.john/john.conf.backup" ]; then
+        if cp "$home/.john/john.conf" "$home/.john/john.conf.backup" &>/dev/null; then
+            echo "$home/.john/john.conf saved to $home/.john/john.conf.backup"
         fi
-        cp "/etc/john/john.conf.custom" "$HOME/.john/john.conf" &>/dev/null
+        cp "/etc/john/john.conf.custom" "$home/.john/john.conf" &>/dev/null
     fi
 else
     echo "/etc/john/john.conf.custom not found"
@@ -33,7 +34,7 @@ else
 fi
 
 [[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
-configdir="${HOME}/.config/handshake-cracker"
+configdir="${home}/.config/handshake-cracker"
 [[ ! -d "$configdir" ]] && mkdir -p "$configdir" &>/dev/null
 configfile="$configdir/scripts.conf"
 
