@@ -1,6 +1,6 @@
 pkgbase = handshake-cracker
 	pkgdesc = Handshake capture with aircrack-ng, test with pyrit, crack with john the ripper using self-builted wordlists.
-	pkgver = 3.d05d801
+	pkgver = 9.d3a0e42
 	pkgrel = 1
 	url = https://github.com/semeion/handshake-cracker
 	arch = any
