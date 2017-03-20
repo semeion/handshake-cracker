@@ -41,7 +41,7 @@ Installing with git
 Installation on Arch Linux
 --------------------------
 
-If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file to a directory in a directory and type:
+If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file in a directory and type:
 
    `makepkg -sri`
 
