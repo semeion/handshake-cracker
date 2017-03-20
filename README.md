@@ -22,7 +22,7 @@ Manual installation
    `./crack`
 
 
-Installation on arch linux
+Installation on Arch Linux
 --------------------------
 
 If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file to a directory in your HOME folder and run:
