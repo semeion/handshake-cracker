@@ -25,8 +25,13 @@ Manual installation
 Installing with git
 -------------------
 
+1) Clone the repository:
    `git clone https://github.com/semeion/handshake-cracker.git`
+   
+2) cd into directory:
    `cd handshake-cracker`
+   
+3) Execute the script:
    `./crack`
 
 
