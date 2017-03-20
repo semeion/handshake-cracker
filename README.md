@@ -120,7 +120,7 @@ Required Programs
 * scapy
 * mdk3
 * xterm
-* john
+* john (jumbo version)
 * less
 * sha1sum
 * sudo
