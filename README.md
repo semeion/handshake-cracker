@@ -27,43 +27,48 @@ Installing with git
 
 1) Clone the repository:
    `git clone https://github.com/semeion/handshake-cracker.git`
-   
 2) cd into directory:
    `cd handshake-cracker`
-   
 3) Copy john rules:
    `cp john.conf.custom /etc/john`
-   
-3) Execute the script:
+4) Install in the system all necessary dependencies (if they are not installed)
+5) Execute the script:
    `./crack`
 
 
 Installation on Arch Linux
 --------------------------
 
-If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file in a directory and type:
+If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file in a directory and as normal user (not root) type:
 
    `makepkg -sri`
 
-To uninstall run:
+To uninstall run (as root):
 
    `pacman -Rcns handshake-cracker`
 
 
 Configuring
 -----------
+You can safely ignore this step, the script no need be configured. But if you preffer can do it.
+
 The config file is located in: `${HOME}/.config/handshake-cracker/scripts.conf`
 
 ```sh
-handshakes_dir=/home/{user}/.config/handshake-cracker/handshakes         # Handshakes directory - used by crack
-sessions_dir=/home/{user}/.config/handshake-cracker/crack-sessions       # Script work directory - used by crack
-wordlist_dir=/home/{user}/.config/handshake-cracker/wordlists            # Directory to save wordlists - used by wordlist
-wordlist=/home/{user}/.config/handshake-cracker/wordlists/wordlist.dic   # Password file - used by crack/wordlist
-maxlength=50                                                             # Max length of words to be used from wordlist - used by crack
-john_incr=Digits8                                                        # John incremental mode to be used - used by crack
-john_rule=My                                                             # John rule to be used - used by crack
-deauth_time=3                                                            # Tries to Deauth Clients Quickly - used by handshake
+handshakes_dir=/home/example/.config/handshake-cracker/handshakes               # Handshakes directory - used by crack script
+sessions_dir=/home/example/.config/handshake-cracker/crack-sessions             # Script work directory - used by crack script
+wordlist_dir=/home/example/.config/handshake-cracker/wordlists                  # Directory to save wordlists - used by wordlist script
+wordlist=/home/example/.config/handshake-cracker/wordlists/wordlist.dic         # Password file - used by crack/wordlist scripts
+maxlength=50                                                                    # Max length of words to be used from wordlist - used by crack script
+john_incr=Digits8                                                               # John incremental mode to be used - used by crack script
+john_rule=My                                                                    # John rule to be used - used by crack script
+deauth_time=3                                                                   # Tries to Deauth Clients Quickly - used by handshake script
 ```
+
+Do not modify the settings after starting the sessions, the configuration is an initial step prior to the crack process.
+
+It is also worth saying that when a new version of john the ripper comes up and you install it, it sometimes modifies the mangle rules, you should not upgrade john to a future version without first finishing your cracking sessions because The update modifying the rules may fail some cracking process.
+
 
 Notes
 -----
@@ -98,10 +103,10 @@ Http://www.openwall.com/lists/john-users/2007/06/05/2
 
 __DO NOT ADD MANGLED WORDLISTS DO BE USED WITH THIS SCRIPT, USE A SMART AND CLEAN WORDLIST, LET THE MANGLE WORK WITH JOHN THE RIPPER.__
 
-For example, don´t use dictionaries with words like maria1234, house*, 12345678, 10203040, etc. Just use maria and house, john will mangle it for you.
+For example, don´t use dictionaries with words like maria1234, maria321, m4r14, house*, House007, h0u53, h0us3, etc. Just use maria and house, john will mangle it for you.
 
 
-_<<< Contributors and feedbacks are welcome! >>>_
+__<<< Contributors and feedbacks are welcome! >>>__
 
 
 
