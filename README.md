@@ -59,12 +59,12 @@ deauth_time=3                                                            # Tries
 Notes
 -----
 
-If the user wants to add some dictionary to be used, it should be copied to `/home/{user}/.config/handshake-cracker/wordlists` (it must be in text format and with a `.txt` extension). You can add as many dictionaries as you wish, but __DO NOT ADD MANGLED WORDLIST DO BE USED WITH THIS SCRIPT.__ Else the crack process maybe take a long time.
+If the user wants to add some dictionary to be used, it should be copied to `wordlist_dir` (it must be in text format and with a `.txt` extension). You can add as many dictionaries as you wish, but __DO NOT ADD MANGLED WORDLIST DO BE USED WITH THIS SCRIPT.__ Else the crack process maybe take a long time.
 
 Each time the user update his wordlist, the sessions will be automatically restarted from 1 (on next step), but no worries, all tested words will be preserved and the cracking process will use not tested words only.
 If necessary adjust 'maxlength' var to up after update the dictionary to use more words in new round.
 
-The passwords will be saved with extension `.cracked` on directory `/home/{user}/.config/handshake-cracker/crack-sessions`.
+The passwords will be saved with extension `.cracked` on directory `sessions_dir`.
 
 The ["My"] john rule incorporates ["jumbo"] john rule and some special goodies.
 
