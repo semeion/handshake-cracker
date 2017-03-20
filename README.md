@@ -16,7 +16,7 @@ Manual installation
 -------------------
 
 1) Copy all files to a system folder.
-2) Copy the file john.conf.custom to /etc/john/john.conf.custom
+2) Copy the file `john.conf.custom` to `/etc/john`
 3) Install in the system all necessary dependencies (if they are not installed)
 4) Run the program with:
    `./crack`
@@ -30,6 +30,9 @@ Installing with git
    
 2) cd into directory:
    `cd handshake-cracker`
+   
+3) Copy john rules:
+   `cp john.conf.custom /etc/john`
    
 3) Execute the script:
    `./crack`
@@ -105,7 +108,7 @@ __DO NOT ADD MANGLED WORDLISTS DO BE USED WITH THIS SCRIPT, USE A SMART AND CLEA
 For example, don´t use dictionaries with words like maria1234, house*, 12345678, 10203040, etc. Just use maria and house, john will mangle it for you.
 
 
-<<< Contributors are welcome! >>>
+_<<< Contributors and feedbacks are welcome! >>>_
 
 
 
