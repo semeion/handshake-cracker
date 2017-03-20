@@ -66,7 +66,7 @@ If necessary adjust 'maxlength' var to up after update the dictionary to use mor
 
 The passwords will be saved with extension `.cracked` on directory `sessions_dir`.
 
-The ["My"] john rule incorporates ["jumbo"] john rule and some special goodies.
+The __My__ john rule incorporates __jumbo__ john rule and some special goodies.
 
 Keep in mind that our project was originally meant to be used with any dictionary, however, the wordlist script captures some specific dictionaries of the Portuguese and English language.
 
