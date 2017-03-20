@@ -1,4 +1,6 @@
 # handshake-cracker
+
+
 Handshake cracker
 
 Includes a tool to efficiently perform capturing of handshakes.
@@ -46,7 +48,10 @@ john_rule=My                                                               # Joh
 deauth_time=3                                                              # Tries to Deauth Clients Quickly - used by handshake
 
 
-If the user wants to add some dictionary to be used, it should be copied to /home/{user}/.config/handshake-cracker/wordlists (it must be in text format and with a .txt extension). You can add as many dictionaries as you wish.
+Notes
+-----
+
+If the user wants to add some dictionary to be used, it should be copied to /home/{user}/.config/handshake-cracker/wordlists (it must be in text format and with a .txt extension). You can add as many dictionaries as you wish, but DO NOT ADD MANGLED WORDLIST DO BE USED WITH THIS SCRIPT.
 
 Each time the user update his wordlist, the sessions will be automatically restarted from 1 (on next step), but no worries, all tested words will be preserved and the cracking process will use not tested words only.
 If necessary adjust 'maxlength' var to up after update the dictionary to use more words in new round.
@@ -54,11 +59,6 @@ If necessary adjust 'maxlength' var to up after update the dictionary to use mor
 The passwords will be saved with extension .cracked on directory /home/{user}/.config/handshake-cracker/crack-sessions.
 
 The "My" rule incorporates "jumbo" rule and some special goodies.
-
-
-
-Notes
------
 
 Keep in mind that our project was originally meant to be used with any dictionary, however, the wordlist script captures some specific dictionaries of the Portuguese and English language.
 
@@ -78,6 +78,14 @@ After downloading the desired language, you can use a command like this to make 
 
 You can get more information on this post:
 Http://www.openwall.com/lists/john-users/2007/06/05/2
+
+DO NOT ADD MANGLED WORDLIST DO BE USED WITH THIS SCRIPT, USE A SMART AND CLEAN WORDLIST, LET THE MANGLE WORK WITH JOHN THE RIPPER.
+
+For example, don´t use dictionaries with words like maria1234, house*, 12345678, 10203040, etc.
+
+
+<<< Contributors are welcome! >>>
+
 
 
 Dependencies
