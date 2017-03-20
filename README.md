@@ -54,23 +54,16 @@ Configuring
 -----------
 The config file is located in: `${HOME}/.config/handshake-cracker/scripts.conf`
 
+```sh
 handshakes_dir=/home/{user}/.config/handshake-cracker/handshakes         # Handshakes directory - used by crack
-
 sessions_dir=/home/{user}/.config/handshake-cracker/crack-sessions       # Script work directory - used by crack
-
 wordlist_dir=/home/{user}/.config/handshake-cracker/wordlists            # Directory to save wordlists - used by wordlist
-
 wordlist=/home/{user}/.config/handshake-cracker/wordlists/wordlist.dic   # Password file - used by crack/wordlist
-
 maxlength=50                                                             # Max length of words to be used from wordlist - used by crack
-
 john_incr=Digits8                                                        # John incremental mode to be used - used by crack
-
 john_rule=My                                                             # John rule to be used - used by crack
-
 deauth_time=3                                                            # Tries to Deauth Clients Quickly - used by handshake
-
-
+```
 
 Notes
 -----
