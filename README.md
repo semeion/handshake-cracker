@@ -22,10 +22,18 @@ Manual installation
    `./crack`
 
 
+Installing with git
+-------------------
+
+   `git clone https://github.com/semeion/handshake-cracker.git`
+   `cd handshake-cracker`
+   `./crack`
+
+
 Installation on Arch Linux
 --------------------------
 
-If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file to a directory in your HOME folder and run:
+If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file to a directory in your HOME folder and type:
 
    `makepkg -sri`
 
