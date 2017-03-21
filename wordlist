@@ -66,14 +66,10 @@ sanitize_words()
     fi
     # convert format to ASCII removing acents
     iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
-    # remove CR from lines ending
-    sed -e 's/\r//g' |
     # remove lines with ... at end
     grep -v '\.\.\.$' |
     # remove some simbols
-    sed -e 's/[ |^?"*~#`!()<>:;.,=+_-\t]//g' |
-    # remove '
-    sed -e 's/'\''//g' |
+    tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
     # convert to lower case
     tr '[:upper:]' '[:lower:]' |
     # sort removing duplicates
