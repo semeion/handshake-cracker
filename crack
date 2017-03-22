@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 1.0
+# Version 1.1
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
@@ -53,10 +53,10 @@ fi
 # check if the file contains something we don't want
 configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
 if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
-	echo "Config file is unclean, cleaning it..." >&2
-	# filter the original to a new file
-	egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
-	configfile="$configfile_secured"
+    echo "Config file is unclean, cleaning it..." >&2
+    # filter the original to a new file
+    egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+    configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant
 source "$configfile"
@@ -98,6 +98,155 @@ function top {
     echo
 }
 
+function session {
+    local bssid="$1"
+    local essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested porcent
+    pyrit_output=$(pyrit -r "${handshakes_dir}/${bssid}.cap" analyze 2>&1)
+    essid=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
+    echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
+    exitcode="$?"
+    if (( exitcode==0 )); then
+        hs_status="${green}GOOD${transparent}"
+    else
+        hs_status="${red}BAD${transparent}"
+    fi
+    while [ 1 ]; do
+        clear
+        top
+        if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
+            cracked="[ ${green}$(<${sessions_dir}/${bssid}.cracked)${transparent} ]"
+        else
+            cracked="${red}NO${transparent}"
+        fi
+        if is_running "${bssid}"; then
+            cores=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] aircrack-ng -p .*${bssid}.cap$" | awk '{ print $10 }')
+            cores="${green}${cores}${transparent}"
+            process="${green}RUNNING${transparent} (${cores} cores)"
+            msg_opt="top"
+        else
+            process="${red}STOPPED${transparent}"
+            cores="0"
+            msg_opt="tart"
+        fi
+
+        total=0
+        if [ -f "${sessions_dir}/${bssid}.session" ]; then
+            session="$(<${sessions_dir}/${bssid}.session)"
+            if [ -f "${sessions_dir}/${bssid}.rec" ]; then
+                john_status="$(john --status=${sessions_dir}/${bssid} 2>&1)"
+                tested=$(echo "$john_status" | cut -d'p' -f1)
+                if [ ! $session == "INC" ]; then
+                    if [ -f "${sessions_dir}/${bssid}.dic${session}.total" ]; then
+                        total="$(<${sessions_dir}/${bssid}.dic${session}.total)"
+                    else
+                        total=0
+                    fi
+                else
+                    total=100000000
+                fi
+                if [ "$total" -gt 0 ]; then
+                    porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}')
+                fi
+            fi
+        else
+            session="-"
+        fi
+
+        # Check if wordlist was modified
+        if [ -f "${wordlist}" ]; then
+            wlst="${yellow}$(basename ${wordlist})${transparent}"
+            [ -f "${sessions_dir}/${bssid}.sha1sum" ] && saved_hash=$(<"${sessions_dir}/${bssid}.sha1sum") || saved_hash=0
+            dict_hash=$(sha1sum "${wordlist}")
+            if [ "$saved_hash" != "$dict_hash" ]; then
+                wlst="${yellow}$(basename ${wordlist})${transparent} (${green}NEW WORDS FOUND${transparent})"
+            fi
+        else
+            wlst="${red}NONE${transparent} (update or set a wordlist)"
+        fi
+        echo -e "                 ${cyan}BSSID${transparent} : ${bssid}"
+        echo -e "                 ${cyan}ESSID${transparent} : ${essid}"
+        echo -e "             ${cyan}Handshake${transparent} : ${hs_status}"
+        echo -e "               ${cyan}Process${transparent} : ${process}"
+        echo -e "               ${cyan}Cracked${transparent} : ${cracked}"
+        echo -e "               ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
+        echo -e "              ${cyan}Wordlist${transparent} : ${wlst}"
+        if [ "$total" -gt 0 ]; then
+        if [ $session == "INC" ]; then
+        echo -e "      ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
+        else
+        echo -e "      ${cyan}Session wordlist${transparent} : ${yellow}${bssid}.dic${session}${transparent}"
+        fi
+        echo -e "   ${cyan}Session total words${transparent} : ${total}"
+        echo -e "  ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${porcent}%${transparent} )"
+        fi
+        if [ -f "${sessions_dir}/${bssid}.rec" ]; then
+        echo -e "  ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
+        fi
+        echo
+        echo -ne "  [${yellow}S${transparent}]${msg_opt}  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
+        read -n 1 choice
+        echo
+        case "$choice" in
+            s|S)
+                if is_running "${bssid}"; then
+                    stop "${bssid}"
+                    sleep 2
+                else
+                    if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
+                        echo -ne "  The handshake was cracked in last process. Password found: ${cracked} "
+                        read -n1 choice
+                    else
+                        if [ -f "${wordlist}" ]; then
+                            cores=0
+                            while (( cores < 1 || cores > cpus )); do
+                                echo -ne "${yellow}  Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
+                                read -n 1 cores
+                                echo
+                            done
+                            crack_handshake "${bssid}" "${cores}" &
+                            sleep 3
+                        else
+                            echo
+                            echo "  [U]pdate your wordlist first! The cracking process need a wordlist!"
+                            echo "  ${wordlist} informed does not exist!"
+                            echo "  If you want to use a specific wordlist, set this in:"
+                            echo "  ${configfile}"
+                            echo
+                            echo -ne "  Press a key to return "
+                            read -n1 choice
+                        fi
+                    fi
+                fi
+                ;;
+            u|U)
+                wordlist --get
+                wordlist --makediff
+                if confirm "  Want to see the new words? (y/N): "; then
+                    less "${wordlist}.diff"
+                fi
+                if confirm "  Want to add to the wordlist? (y/N): "; then
+                    wordlist --add
+                fi
+                echo "  Press a key to return"
+                read -n1 choice
+                ;;
+            t|T)
+                if [ ! -f "${sessions_dir}/${bssid}.dic${session}.total" ]; then
+                    statistics "${bssid}"
+                else
+                    echo "  Statistics is already being performed for this session!"
+                    echo "  Press a key to return"
+                    read -n1 choice
+                fi
+                ;;
+            b|B|q|Q)
+                break
+                ;;
+        esac
+    done
+}
+
+
 function load_handshakes {
     for ((i=0; i<${#handshake_files[@]}; i++)); do
         handshake_filename="${handshake_files[$i]}"
@@ -122,7 +271,7 @@ function select_handshake {
         clear
         top
         echo "                                  WORDS   CRACK       CPU"
-        echo "  Nº          BSSID       STATUS  LENGTH  PROCESS     CORES   CRAKED    ESSID"
+        echo "  NR.         BSSID       STATUS  LENGTH  PROCESS     CORES   CRAKED    ESSID"
         echo
         for ((i=0; i<${#handshake_files[@]}; i++)); do
             if (( exitcode[$i]==0 )); then
@@ -156,49 +305,14 @@ function select_handshake {
             echo -e "  [${yellow}$((i+1))${transparent}]\t${cyan}${bssid[$i]}  ${status}\t   ${order}\t  ${process}\t${cores}\t${cracked}\t${essid[$i]}\t${transparent}"
         done
         echo
-        echo -ne "  [${yellow}C${transparent}]apture handshake  [${yellow}U${transparent}]pdate wordlist  [${yellow}S${transparent}]tatistics  [${yellow}Q${transparent}]uit): "
+        echo -ne "  [${yellow}C${transparent}]apture handshake  [${yellow}U${transparent}]pdate wordlist  [${yellow}Q${transparent}]uit): "
         read choice
 
         case "$choice" in
             +([0-9]))
                 if (( choice > 0 && choice <= ${#handshake_files[@]} )); then
                     choice=$(($choice-1))
-                    if [ -f "${sessions_dir}/${bssid[$choice]}.rec" ]; then
-                        status="$(john --status=${sessions_dir}/${bssid[$choice]} 2>&1)"
-                        echo -e "\n  $status\n"
-                    fi
-                    if is_running "${bssid[$choice]}"; then
-                        if confirm "  Is already running. Do you want to stop? (y/N): "; then
-                            stop "${bssid[$choice]}"
-                            sleep 1
-                        fi
-                    else
-                        if [ -f "${sessions_dir}/${bssid[$choice]}.cracked" ]; then
-                            status="$(< ${sessions_dir}/${bssid[$choice]}.cracked)"
-                            echo -ne "  The handshake was cracked in last process. Password found: '${status}' "
-                            read -n1 choice
-                        else
-                            if [ -f "${wordlist}" ]; then
-                                cores=0
-                                while (( cores < 1 || cores > cpus )); do
-                                    echo -ne "${yellow}  Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
-                                    read -n 1 cores
-                                    echo
-                                done
-                                crack_handshake "${bssid[$choice]}" "${cores}" &
-                                sleep 1
-                            else
-                                echo
-                                echo "  Update your wordlist first! The cracking process need a wordlist!"
-                                echo "  ${wordlist} does not exist!"
-                                echo "  If you want to use a specific wordlist, set this in:"
-                                echo "  ${configfile}"
-                                echo
-                                echo -ne "  Press a key to return "
-                                read -n1 choice
-                            fi
-                        fi
-                    fi
+                    session "${bssid[$choice]}"
                 else
                     select_handshake
                 fi
@@ -223,17 +337,8 @@ function select_handshake {
                 echo "  Press a key to return"
                 read -n1 choice
                 ;;
-            s|S)
-                echo "  STATISTICS OF PROCESS"
-                statistics
-                echo "  Press a key to return"
-                read -n1 choice
-                ;;
             q|Q)
                 exit
-                ;;
-            *)
-                select_handshake
                 ;;
         esac
     done
@@ -300,7 +405,8 @@ function crack_handshake {
                     # Add tested words to *.tested file, Create new dictionary with next word length, Step to next crack session
                     if [ -f "${sessions_dir}/${bssid}.dic${session}" ]; then
                         cat "${sessions_dir}/${bssid}.dic${session}" >>"${sessions_dir}/${bssid}.tested" # Add tested passwords to *.tested file
-                        rm -rf "${sessions_dir}/${bssid}.dic${session}"
+                        rm -f "${sessions_dir}/${bssid}.dic${session}"
+                        rm -f "${sessions_dir}/${bssid}.dic${session}.total"
                     fi
                     if [[ $session == "INC" ]]; then    # Previous crack session was incremental?
                         # Start cracking process using dictionary with 1 length words
@@ -318,7 +424,7 @@ function crack_handshake {
                     dict_hash=$(sha1sum "${wordlist}")
                     if [ "$saved_hash" != "$dict_hash" ]; then
                         sha1sum "${wordlist}" >"${sessions_dir}/${bssid}.sha1sum"
-						session="1"
+                        session="1"
                     fi
                     if (( session <= maxlength )); then
                         [ ! -f "${sessions_dir}/${bssid}.tested" ] && >"${sessions_dir}/${bssid}.tested" # if *.tested don´t exist, create
@@ -340,31 +446,23 @@ function crack_handshake {
     if is_running "${bssid}"; then
         stop "${bssid}"
     fi
+    rm -f "${sessions_dir}/${bssid}.run"
 }
 
 function statistics {
-    local status tested dic porcent
-    for ((i=0; i<${#handshake_files[@]}; i++)); do
-        if [ -f "${sessions_dir}/${bssid[$i]}.session" ]; then
-            session="$(<${sessions_dir}/${bssid[$i]}.session)"
-            if [[ ! $session == "INC" ]]; then
-                if [ -f "${sessions_dir}/${bssid[$i]}.rec" ]; then
-                    echo "  Processing, wait a few minutes..."
-                    status="$(john --status=${sessions_dir}/${bssid[$i]} 2>&1)"
-                    tested=$(echo "$status" | cut -d'p' -f1)
-                    dic="${sessions_dir}/${bssid[$i]}.dic${session}"
-                    total="$(john --wordlist=${dic} --stdout --rules=${john_rule} | wc -l)"
-                    porcent=$(( tested / total * 100 ))
-                    porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}')
-                    echo "  --------------------------------------------------------"
-                    echo "  BSSID        : $bssid"
-                    echo "  John status  : $status"
-                    echo "  Total words  : $total"
-                    echo "  Tested words : $tested ( ${porcent}% )"
-                fi
+    local bssid="$1"
+    local session dict total
+    if [ -f "${sessions_dir}/${bssid}.session" ]; then
+        session="$(<${sessions_dir}/${bssid}.session)"
+        if [[ ! $session == "INC" ]]; then
+            if [ -f "${sessions_dir}/${bssid}.rec" ]; then
+                echo "  Processing, wait a few minutes..."
+                dict="${sessions_dir}/${bssid}.dic${session}"
+                total="$(john --wordlist=${dict} --stdout --rules=${john_rule} 2>&1 | wc -l)"
+                echo "$total" >"${sessions_dir}/${bssid}.dic${session}.total"
             fi
         fi
-    done
+    fi
 }
 
 # Commandline parameters?
