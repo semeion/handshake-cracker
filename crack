@@ -98,9 +98,14 @@ function top {
     echo
 }
 
+function show_time {
+    local secs="$1"
+    echo "$secs" | awk '{printf "%d:%02d:%02d:%02d\n",$0/86400,$0%86400/3600,$0%3600/60,$0%60}'
+}
+
 function session {
     local bssid="$1"
-    local essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested porcent
+    local essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
     pyrit_output=$(pyrit -r "${handshakes_dir}/${bssid}.cap" analyze 2>&1)
     essid=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
     echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
@@ -145,7 +150,12 @@ function session {
                     total=100000000
                 fi
                 if [ "$total" -gt 0 ]; then
-                    porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}')
+                    elapsed_porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}')
+                    elapsed_time=$(echo ${john_status} | awk '{ print $2 }')
+                    IFS=: read dd hh mm ss<<<$elapsed_time
+                    elapsed_secs=$(echo "$elapsed_time" | awk -F: '{print 86400*$1+3600*$2+60*$3+$4}')
+                    necessary_secs=$(echo "$elapsed_secs $elapsed_porcent" | awk '{ print $1/$2*100 }')
+                    remaining_secs=$(echo "$necessary_secs $elapsed_secs" | awk '{ print $1-$2 }')
                 fi
             fi
         else
@@ -154,11 +164,11 @@ function session {
 
         # Check if wordlist was modified
         if [ -f "${wordlist}" ]; then
-            wlst="${yellow}$(basename ${wordlist})${transparent}"
+            wlst="$(basename ${wordlist})"
             [ -f "${sessions_dir}/${bssid}.sha1sum" ] && saved_hash=$(<"${sessions_dir}/${bssid}.sha1sum") || saved_hash=0
             dict_hash=$(sha1sum "${wordlist}")
             if [ "$saved_hash" != "$dict_hash" ]; then
-                wlst="${yellow}$(basename ${wordlist})${transparent} (${green}NEW WORDS FOUND${transparent})"
+                wlst="$(basename ${wordlist}) (${green}NEW WORDS FOUND${transparent})"
             fi
         else
             wlst="${red}NONE${transparent} (update or set a wordlist)"
@@ -174,10 +184,11 @@ function session {
         if [ $session == "INC" ]; then
         echo -e "      ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
         else
-        echo -e "      ${cyan}Session wordlist${transparent} : ${yellow}${bssid}.dic${session}${transparent}"
+        echo -e "      ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
         fi
         echo -e "   ${cyan}Session total words${transparent} : ${total}"
-        echo -e "  ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${porcent}%${transparent} )"
+        echo -e "  ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
+        echo -e "         ${cyan}ETA (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
         fi
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
         echo -e "  ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
