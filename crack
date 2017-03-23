@@ -173,25 +173,26 @@ function session {
         else
             wlst="${red}NONE${transparent} (update or set a wordlist)"
         fi
-        echo -e "                 ${cyan}BSSID${transparent} : ${bssid}"
-        echo -e "                 ${cyan}ESSID${transparent} : ${essid}"
-        echo -e "             ${cyan}Handshake${transparent} : ${hs_status}"
-        echo -e "               ${cyan}Process${transparent} : ${process}"
-        echo -e "               ${cyan}Cracked${transparent} : ${cracked}"
-        echo -e "               ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
-        echo -e "              ${cyan}Wordlist${transparent} : ${wlst}"
+        echo -e "                    ${cyan}BSSID${transparent} : ${bssid}"
+        echo -e "                    ${cyan}ESSID${transparent} : ${essid}"
+        echo -e "                ${cyan}Handshake${transparent} : ${hs_status}"
+        echo -e "                  ${cyan}Process${transparent} : ${process}"
+        echo -e "                  ${cyan}Cracked${transparent} : ${cracked}"
+        echo -e "                  ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
+        echo -e "                 ${cyan}Wordlist${transparent} : ${wlst}"
         if [ "$total" -gt 0 ]; then
         if [ $session == "INC" ]; then
-        echo -e "      ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
+        echo -e "         ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
         else
-        echo -e "      ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
+        echo -e "         ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
         fi
-        echo -e "   ${cyan}Session total words${transparent} : ${total}"
-        echo -e "  ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
-        echo -e "         ${cyan}ETA (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
+        echo -e "      ${cyan}Session total words${transparent} : ${total}"
+        echo -e "     ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
+        echo -e "  ${cyan}Session total (D:H:M:S)${transparent} : $(show_time ${necessary_secs})"
+        echo -e " ${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
         fi
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-        echo -e "  ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
+        echo -e "     ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
         fi
         echo
         echo -ne "  [${yellow}S${transparent}]${msg_opt}  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
