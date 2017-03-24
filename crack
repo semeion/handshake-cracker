@@ -196,7 +196,7 @@ function session {
         fi
         echo
         echo -e  "  [${yellow}S${transparent}]${msg_opt} session  [${yellow}N${transparent}]ext session  [${yellow}R${transparent}]eset session"
-        echo -ne "  [${yellow}V${transparent}]iew completed  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
+        echo -ne "  [${yellow}V${transparent}]iew current  [${yellow}C${transparent}]ompleted  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
         read -n 1 choice
         echo
         case "$choice" in
@@ -231,6 +231,17 @@ function session {
                 fi
                 ;;
             v|V)
+                if [ -f "${sessions_dir}/${bssid}.dic${session}" ]; then
+                    less "${sessions_dir}/${bssid}.dic${session}"
+                else
+                    echo
+                    echo "  No wordlist session was started."
+                    echo
+                    echo -ne "  Press a key to return "
+                    read -n1 choice
+                fi
+                ;;
+            c|C)
                 if [ -f "${sessions_dir}/${bssid}.tested" ]; then
                     less "${sessions_dir}/${bssid}.tested"
                 else
