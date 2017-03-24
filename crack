@@ -92,7 +92,7 @@ function top {
     echo
     echo -e "$green  ##########################################################"
     echo -e "$green  #                                                        #"
-    echo -e "$green  #            PASSWORD CRACKER 1.0 by mnemonic            #"
+    echo -e "$green  #            PASSWORD CRACKER 1.1 by mnemonic            #"
     echo -e "$green  #                                                        #"
     echo -e "$green  ########################################################## ${transparent}"
     echo
@@ -186,8 +186,8 @@ function session {
         else
         echo -e "          ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
         fi
-        echo -e "       ${cyan}Session total words${transparent} : ${total}"
-        echo -e "      ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
+        echo -e "       ${cyan}Session total words${transparent} : $(printf "%'.f\n" ${total})"
+        echo -e "      ${cyan}Session tested words${transparent} : $(printf "%'.f\n" ${tested}) ( ${yellow}${elapsed_porcent}%${transparent} )"
         echo -e "   ${cyan}Session total (D:H:M:S)${transparent} : $(show_time ${necessary_secs})"
         echo -e "  ${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
         fi
