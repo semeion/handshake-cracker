@@ -47,6 +47,9 @@ To uninstall run (as root):
 
    `pacman -Rcns handshake-cracker`
 
+Or install from AUR:
+https://aur.archlinux.org/packages/handshake-cracker/
+
 
 Configuring
 -----------
