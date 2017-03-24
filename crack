@@ -150,12 +150,12 @@ function session {
                     total=100000000
                 fi
                 if [ "$total" -gt 0 ]; then
-                    elapsed_porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}')
+                    elapsed_porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}' 2>&1)
                     elapsed_time=$(echo ${john_status} | awk '{ print $2 }')
                     IFS=: read dd hh mm ss<<<$elapsed_time
-                    elapsed_secs=$(echo "$elapsed_time" | awk -F: '{print 86400*$1+3600*$2+60*$3+$4}')
-                    necessary_secs=$(echo "$elapsed_secs $elapsed_porcent" | awk '{ print $1/$2*100 }')
-                    remaining_secs=$(echo "$necessary_secs $elapsed_secs" | awk '{ print $1-$2 }')
+                    elapsed_secs=$(echo "$elapsed_time" | awk -F: '{print 86400*$1+3600*$2+60*$3+$4}' 2>&1)
+                    necessary_secs=$(echo "$elapsed_secs $elapsed_porcent" | awk '{ print $1/$2*100 }' 2>&1)
+                    remaining_secs=$(echo "$necessary_secs $elapsed_secs" | awk '{ print $1-$2 }' 2>&1)
                 fi
             fi
         else
@@ -173,36 +173,36 @@ function session {
         else
             wlst="${red}NONE${transparent} (update or set a wordlist)"
         fi
-        echo -e "                    ${cyan}BSSID${transparent} : ${bssid}"
-        echo -e "                    ${cyan}ESSID${transparent} : ${essid}"
-        echo -e "                ${cyan}Handshake${transparent} : ${hs_status}"
-        echo -e "                  ${cyan}Process${transparent} : ${process}"
-        echo -e "                  ${cyan}Cracked${transparent} : ${cracked}"
-        echo -e "                  ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
-        echo -e "                 ${cyan}Wordlist${transparent} : ${wlst}"
+        echo -e "                     ${cyan}BSSID${transparent} : ${bssid}"
+        echo -e "                     ${cyan}ESSID${transparent} : ${essid}"
+        echo -e "                 ${cyan}Handshake${transparent} : ${hs_status}"
+        echo -e "                   ${cyan}Process${transparent} : ${process}"
+        echo -e "                   ${cyan}Cracked${transparent} : ${cracked}"
+        echo -e "                   ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
+        echo -e "                  ${cyan}Wordlist${transparent} : ${wlst}"
         if [ "$total" -gt 0 ]; then
         if [ $session == "INC" ]; then
-        echo -e "         ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
+        echo -e "          ${cyan}Session wordlist${transparent} : Incremental (00000000 to 99999999)"
         else
-        echo -e "         ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
+        echo -e "          ${cyan}Session wordlist${transparent} : ${bssid}.dic${session}"
         fi
-        echo -e "      ${cyan}Session total words${transparent} : ${total}"
-        echo -e "     ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
-        echo -e "  ${cyan}Session total (D:H:M:S)${transparent} : $(show_time ${necessary_secs})"
-        echo -e " ${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
+        echo -e "       ${cyan}Session total words${transparent} : ${total}"
+        echo -e "      ${cyan}Session tested words${transparent} : ${tested} ( ${yellow}${elapsed_porcent}%${transparent} )"
+        echo -e "   ${cyan}Session total (D:H:M:S)${transparent} : $(show_time ${necessary_secs})"
+        echo -e "  ${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
         fi
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-        echo -e "     ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
+        echo -e "      ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
         fi
         echo
-        echo -ne "  [${yellow}S${transparent}]${msg_opt}  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
+        echo -e  "  [${yellow}S${transparent}]${msg_opt} session  [${yellow}N${transparent}]ext session  [${yellow}R${transparent}]eset session"
+        echo -ne "  [${yellow}V${transparent}]iew completed  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
         read -n 1 choice
         echo
         case "$choice" in
             s|S)
                 if is_running "${bssid}"; then
                     stop "${bssid}"
-                    sleep 2
                 else
                     if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
                         echo -ne "  The handshake was cracked in last process. Password found: ${cracked} "
@@ -228,6 +228,59 @@ function session {
                             read -n1 choice
                         fi
                     fi
+                fi
+                ;;
+            v|V)
+                if [ -f "${sessions_dir}/${bssid}.tested" ]; then
+                    less "${sessions_dir}/${bssid}.tested"
+                else
+                    echo
+                    echo "  No wordlist session was completed."
+                    echo
+                    echo -ne "  Press a key to return "
+                    read -n1 choice
+                fi
+                ;;
+            n|N)
+                if is_running "${bssid}"; then
+                    if confirm "  Do you want to cancel the current session and go to the next one? (y/N): "; then
+                        if confirm "  You will lose the current time spent. Are you sure? (y/N): "; then
+                            cores=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] aircrack-ng -p .*${bssid}.cap$" | awk '{ print $10 }')
+                            stop "${bssid}"
+                            rm -f "${sessions_dir}/${bssid}.rec"
+                            rm -f "${sessions_dir}/${bssid}.dic${session}"
+                            rm -f "${sessions_dir}/${bssid}.dic${session}.total"
+                            crack_handshake "${bssid}" "${cores}" &
+                            sleep 3
+                        fi
+                    fi
+                else
+                    echo
+                    echo "  No session started yet."
+                    echo
+                    echo -ne "  Press a key to return "
+                    read -n1 choice
+                fi
+                ;;
+            r|R)
+                if [ -f "${sessions_dir}/${bssid}.rec" ]; then
+                    if confirm "  Do you want to cancel the session and restart in incremental mode? (y/N): "; then
+                        if confirm "  You will lose the current time spent. Are you sure? (y/N): "; then
+                            if is_running "${bssid}"; then
+                                stop "${bssid}"
+                            fi
+                            rm -f "${sessions_dir}/${bssid}.rec"
+                            rm -f "${sessions_dir}/${bssid}.dic${session}"
+                            rm -f "${sessions_dir}/${bssid}.dic${session}.total"
+                            rm -f "${sessions_dir}/${bssid}.session"
+                        fi
+                    fi
+                else
+                    echo
+                    echo "  No session started yet."
+                    echo
+                    echo -ne "  Press a key to return "
+                    read -n1 choice
                 fi
                 ;;
             u|U)
@@ -359,35 +412,38 @@ function select_handshake {
 function is_running {
     local bssid="$1"
     local john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
-    if [ -z "${john_pid}" ]; then
-        return 1
-    else
+    if [ "${john_pid}" ]; then
         return 0
+    else
+        return 1
     fi
 }
 
 function stop {
     local bssid="$1"
-    local john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
-    if [ ! -z "${john_pid}" ]; then
+    local john_pid
+    john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
+    while [ "${john_pid}" ]; do
         rm -f "${sessions_dir}/${bssid}.run"
         kill -INT "${john_pid}"
-    fi
+        sleep 1
+        john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
+    done
 }
 
 # Notes about this function:
 #  1) RESTARTING THE TEST MANUALY (not recomended):
-#     Deleting the *.rec file will bypass current test, going to next session (words length),
-#     words in current session will be considered TESTED by the script (added in *.tested).
-#     Words in *.tested will be ignored in future tests.
-#     So, if you delete *.rec should consider delete *session and *.tested too. Except when performing
-#     initial numeric incremental test (INC), in this case, deleting *.rec will just only bypass INC
-#     test (INC test don´t add words in *.tested)
-#  -  So, to restart a session from begin, delete *.session *.rec *.tested *.dic[0-99]
-#  -  To restart the current session only, decrease the value inside *.session file, delete *.rec *.dic[0-99]
-#  2) The passwords will be saved in *.cracked files
+#     Deleting the {BSSID}.rec file will bypass current test, going to next session (words length),
+#     words in current session will be considered TESTED by the script (added in {BSSID}.tested).
+#     Words in {BSSID}.tested will be ignored in future tests.
+#     So, if you delete {BSSID}.rec should consider delete {BSSID}.dic{1-99} and {BSSID}.dic{1-99}.total too. Except when performing
+#     initial numeric incremental test (INC), in this case, deleting {BSSID}.rec will just only bypass INC
+#     test (INC test don´t add words in {BSSID}.tested)
+#  -  So, to restart a session from begin, delete {BSSID}.session {BSSID}.rec {BSSID}.dic{1-99} {BSSID}.dic{1-99}.total
+#  -  To restart the current session only, decrease the value inside {BSSID}.session file, delete {BSSID}.rec {BSSID}.dic{1-99} {BSSID}.dic{1-99}.total
+#  2) The passwords will be saved in {BSSID}.cracked files
 #  3) Each time the user update his wordlist, the sessions will be automatically restarted from 1, but no worries,
-#     all tested words will be preserved and the cracking process will use not tested words only.
+#     all tested words will be preserved and the cracking process will use the new words only.
 #     If necessary adjust 'maxlength' var to up after update the dictionary to use more words in new round.
 function crack_handshake {
     local bssid="$1"
