@@ -5,7 +5,7 @@
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
-# dependencies: john (with jumbo3 rules), aircrack-ng, pyrit, scapy, less
+# dependencies: john (with jumbo rules), aircrack-ng, pyrit, scapy, less
 
 shopt -s extglob
 
@@ -294,18 +294,6 @@ function session {
                     read -n1 choice
                 fi
                 ;;
-            u|U)
-                wordlist --get
-                wordlist --makediff
-                if confirm "  Want to see the new words? (y/N): "; then
-                    less "${wordlist}.diff"
-                fi
-                if confirm "  Want to add to the wordlist? (y/N): "; then
-                    wordlist --add
-                fi
-                echo "  Press a key to return"
-                read -n1 choice
-                ;;
             t|T)
                 if [ ! -f "${sessions_dir}/${bssid}.dic${session}.total" ]; then
                     statistics "${bssid}"
@@ -360,7 +348,8 @@ function select_handshake {
                 if [[ $order == "INC" ]]; then
                     order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}"
                 else
-                    order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}/${yellow}${maxlength}${transparent}"
+#                   order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}/${yellow}${maxlength}${transparent}"
+                    order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}"
                 fi
             else
                 order="-"
