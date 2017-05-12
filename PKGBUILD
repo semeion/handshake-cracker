@@ -9,7 +9,7 @@ arch=('any')
 url='https://github.com/semeion/handshake-cracker'
 license=('GPL3')
 depends=('aircrack-ng' 'pyrit' 'scapy' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
-         'coreutils' 'glibc' 'sed' 'gzip' 'bzip2' 'unzip' 'wget' 'sudo' 'less' 'john')
+         'coreutils' 'glibc' 'sed' 'gzip' 'bzip2' 'unzip' 'wget' 'sudo' 'less' 'john' 'python2' 'python2-lxml')
 makedepends=('git')
 source=('git+https://github.com/semeion/handshake-cracker.git')
 sha256sums=('SKIP') # use 'updpkgsums' if you want

@@ -348,7 +348,6 @@ function select_handshake {
                 if [[ $order == "INC" ]]; then
                     order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}"
                 else
-#                   order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}/${yellow}${maxlength}${transparent}"
                     order="${yellow}$(<${sessions_dir}/${bssid[$i]}.session)${transparent}"
                 fi
             else
