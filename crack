@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 1.1
+# Version 1.4
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
@@ -40,14 +40,14 @@ configfile="$configdir/scripts.conf"
 
 if [ ! -f "$configfile" ]; then
 echo "\
-handshakes_dir=${configdir}/handshakes               # Handshakes directory - used by crack
-sessions_dir=${configdir}/crack-sessions             # Script work directory - used by crack
-wordlist_dir=${configdir}/wordlists                  # Directory to save wordlists - used by wordlist
-wordlist=${configdir}/wordlists/wordlist.dic         # Password file - used by crack/wordlist
-maxlength=50                                         # Max length (63) of words to be used from wordlist - used by crack
-john_incr=Digits8                                    # John incremental mode to be used - used by crack
-john_rule=My                                         # John rule to be used - used by crack
-deauth_time=3                                        # Tries to Deauth Clients Quickly - used by handshake" >"$configfile"
+handshakes_dir=${configdir}/handshakes                                              # Handshakes directory - used by crack
+sessions_dir=${configdir}/crack-sessions                                            # Script work directory - used by crack
+wordlist_dir=${configdir}/wordlists                                                 # Directory to save wordlists - used by wordlist
+wordlist=${configdir}/wordlists/wordlist.dic                                        # Password file - used by crack/wordlist
+maxlength=63                                                                        # Max length (63) of words to be used from wordlist - used by crack
+john_incr=Digits8                                                                   # John incremental mode to be used - used by crack
+john_rules=(Wordlist Single Extra NT OldOffice MyCustom MyExtra MyExtra2)           # John rules to be used - used by crack
+deauth_time=3                                                                       # Tries to Deauth Clients Quickly - used by handshake" >"$configfile"
 fi
 
 # check if the file contains something we don't want
@@ -92,7 +92,7 @@ function top {
     echo
     echo -e "$green  ##########################################################"
     echo -e "$green  #                                                        #"
-    echo -e "$green  #            PASSWORD CRACKER 1.1 by mnemonic            #"
+    echo -e "$green  #            PASSWORD CRACKER 1.4 by mnemonic            #"
     echo -e "$green  #                                                        #"
     echo -e "$green  ########################################################## ${transparent}"
     echo
@@ -103,9 +103,32 @@ function show_time {
     echo "$secs" | awk '{printf "%d:%02d:%02d:%02d\n",$0/86400,$0%86400/3600,$0%3600/60,$0%60}'
 }
 
+function set_next_rule {
+	local i
+	if [ -f "${sessions_dir}/${bssid}.rule" ]; then
+		i=$(<"${sessions_dir}/${bssid}.rule")
+	else
+		i=0
+	fi
+	i=$(($i+1))
+	echo "$i" >"${sessions_dir}/${bssid}.rule"
+}
+
+function get_rule {
+	local i
+	if [ -f "${sessions_dir}/${bssid}.rule" ]; then
+		i=$(<"${sessions_dir}/${bssid}.rule")
+	else
+		i=0
+	fi
+	if (($i<${#john_rules[@]})); then
+		echo "${john_rules[$i]}"
+	fi
+}
+
 function session {
     local bssid="$1"
-    local essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
+    local rule essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
     pyrit_output=$(pyrit -r "${handshakes_dir}/${bssid}.cap" analyze 2>&1)
     essid=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
     echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
@@ -118,6 +141,7 @@ function session {
     while [ 1 ]; do
         clear
         top
+        rule=$(get_rule)
         if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
             cracked="[ ${green}$(<${sessions_dir}/${bssid}.cracked)${transparent} ]"
         else
@@ -178,6 +202,7 @@ function session {
         echo -e "                 ${cyan}Handshake${transparent} : ${hs_status}"
         echo -e "                   ${cyan}Process${transparent} : ${process}"
         echo -e "                   ${cyan}Cracked${transparent} : ${cracked}"
+        echo -e "                 ${cyan}John Rule${transparent} : ${rule}"
         echo -e "                   ${cyan}Session${transparent} : ${yellow}${session}${transparent}/${yellow}${maxlength}${transparent}"
         echo -e "                  ${cyan}Wordlist${transparent} : ${wlst}"
         if [ "$total" -gt 0 ]; then
@@ -242,15 +267,21 @@ function session {
                 fi
                 ;;
             c|C)
-                if [ -f "${sessions_dir}/${bssid}.tested" ]; then
-                    less "${sessions_dir}/${bssid}.tested"
-                else
-                    echo
-                    echo "  No wordlist session was completed."
-                    echo
-                    echo -ne "  Press a key to return "
-                    read -n1 choice
-                fi
+                for i in "${john_rules[@]}"; do
+                    if [ -f "${sessions_dir}/${bssid}.${i}.tested" ]; then
+                        echo "------------------------------------ Rule: $i"
+                        cat "${sessions_dir}/${bssid}.${i}.tested"
+                    fi
+                done | less
+                #~ if [ -f "${sessions_dir}/${bssid}.tested" ]; then
+                    #~ less "${sessions_dir}/${bssid}.tested"
+                #~ else
+                    #~ echo
+                    #~ echo "  No wordlist session was completed."
+                    #~ echo
+                    #~ echo -ne "  Press a key to return "
+                    #~ read -n1 choice
+                #~ fi
                 ;;
             n|N)
                 if is_running "${bssid}"; then
@@ -275,8 +306,8 @@ function session {
                 ;;
             r|R)
                 if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-                    if confirm "  Do you want to cancel the session and restart in incremental mode? (y/N): "; then
-                        if confirm "  You will lose the current time spent. Are you sure? (y/N): "; then
+                    if confirm "  Do you want to cancel current session and restart to incremental mode? (y/N): "; then
+                        if confirm "  You will lose the current session time spent. Are you sure? (y/N): "; then
                             if is_running "${bssid}"; then
                                 stop "${bssid}"
                             fi
@@ -284,6 +315,7 @@ function session {
                             rm -f "${sessions_dir}/${bssid}.dic${session}"
                             rm -f "${sessions_dir}/${bssid}.dic${session}.total"
                             rm -f "${sessions_dir}/${bssid}.session"
+                            rm -f "${sessions_dir}/${bssid}.rule"
                         fi
                     fi
                 else
@@ -447,7 +479,7 @@ function stop {
 function crack_handshake {
     local bssid="$1"
     local cores="$2"
-    local session dic
+    local rule session dic
     # Verify BSSID consistence, number of CPU cores, and if the process already running
     if [[ ! "$bssid" =~ ^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$ ]] || (( cores < 1 || cores > cpus )) || is_running "${bssid}"; then
         exit 1
@@ -456,6 +488,7 @@ function crack_handshake {
     if (( maxlength > biggest )); then
         maxlength="${biggest}"
     fi
+    rule=$(get_rule)
     >"${sessions_dir}/${bssid}.run"
     while [ ! -f "${sessions_dir}/${bssid}.cracked" ] && [ -f "${sessions_dir}/${bssid}.run" ]; do
         #~ xterm_pid=$(wmctrl -lp | grep "Cracking ${bssid}" | awk '{ print $3 }')
@@ -471,7 +504,7 @@ function crack_handshake {
                 else
                     # Add tested words to *.tested file, Create new dictionary with next word length, Step to next crack session
                     if [ -f "${sessions_dir}/${bssid}.dic${session}" ]; then
-                        cat "${sessions_dir}/${bssid}.dic${session}" >>"${sessions_dir}/${bssid}.tested" # Add tested passwords to *.tested file
+                        cat "${sessions_dir}/${bssid}.dic${session}" >>"${sessions_dir}/${bssid}.${rule}.tested" # Add tested passwords to *.tested file
                         rm -f "${sessions_dir}/${bssid}.dic${session}"
                         rm -f "${sessions_dir}/${bssid}.dic${session}.total"
                     fi
@@ -492,14 +525,20 @@ function crack_handshake {
                     if [ "$saved_hash" != "$dict_hash" ]; then
                         sha1sum "${wordlist}" >"${sessions_dir}/${bssid}.sha1sum"
                         session="1"
+                        rm -f "${sessions_dir}/${bssid}.rule"
                     fi
                     if (( session <= maxlength )); then
-                        [ ! -f "${sessions_dir}/${bssid}.tested" ] && >"${sessions_dir}/${bssid}.tested" # if *.tested don´t exist, create
-                        grep -E "^.{$session,$session}$" "${wordlist}" | grep -vxF -f "${sessions_dir}/${bssid}.tested" >"${sessions_dir}/${bssid}.dic${session}" # Create a dictionary excluding .tested words
+                        rule=$(get_rule)
+                        [ ! -f "${sessions_dir}/${bssid}.${rule}.tested" ] && >"${sessions_dir}/${bssid}.${rule}.tested" # if *.tested don´t exist, create
+                        grep -E "^.{$session,$session}$" "${wordlist}" | grep -vxF -f "${sessions_dir}/${bssid}.${rule}.tested" >"${sessions_dir}/${bssid}.dic${session}" # Create a dictionary excluding .tested words
                         echo "$session" >"${sessions_dir}/${bssid}.session"
                         sync
                         dic="${sessions_dir}/${bssid}.dic${session}"
-                        xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --stdout --rules=${john_rule} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap"
+                        xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --stdout --rules=${rule} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap"
+                    else
+                        set_next_rule
+                        echo "INC" >"${sessions_dir}/${bssid}.session"
+                        sync
                     fi
                 fi
             else
@@ -519,13 +558,14 @@ function crack_handshake {
 function statistics {
     local bssid="$1"
     local session dict total
+    local rule=$(get_rule)
     if [ -f "${sessions_dir}/${bssid}.session" ]; then
         session="$(<${sessions_dir}/${bssid}.session)"
         if [[ ! $session == "INC" ]]; then
             if [ -f "${sessions_dir}/${bssid}.rec" ]; then
                 echo "  Processing, wait a few minutes..."
                 dict="${sessions_dir}/${bssid}.dic${session}"
-                total="$(john --wordlist=${dict} --stdout --rules=${john_rule} 2>&1 | wc -l)"
+                total="$(john --wordlist=${dict} --stdout --rules=${rule} 2>&1 | wc -l)"
                 echo "$total" >"${sessions_dir}/${bssid}.dic${session}.total"
             fi
         fi
