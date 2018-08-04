@@ -10,7 +10,7 @@
 shopt -s extglob
 
 # Check dependencies
-dependencies=(airodump-ng aireplay-ng airmon-ng tshark cowpatty, mdk3 xterm grep egrep tput wc cut tr awk killall)
+dependencies=(airodump-ng aireplay-ng airmon-ng tshark cowpatty mdk3 xterm grep egrep tput wc cut tr awk killall)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
@@ -325,7 +325,7 @@ function exist_handshake {
     local handshakefile="${handshakes_dir}/${1}.cap"
     if [ -f "$handshakefile" ]; then
         local Host_SSID_loc=$(aircrack-ng "$handshakefile" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $3}')
-        local Host_MAC_loc=$(aircrack-ng "$handshakefile" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $2}'))
+        local Host_MAC_loc=$(aircrack-ng "$handshakefile" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $2}')
         if [[ "$Host_MAC_loc" == *"$1"* ]] && [[ "$Host_SSID_loc" == *"$2"* ]] && cowpatty -r "$handshakefile" -c | grep "Collected all necessary data to mount crack against WPA2/PSK passphrase." &>/dev/null; then
             return 0
         else
@@ -376,9 +376,9 @@ function capture_handshake {
 
 ##################################### Comprueba el handshake antes de continuar
 function check_handshake {
-    tshark -r $tempdir/$Host_MAC-01.cap -R "(wlan.fc.type_subtype == 0x08 || wlan.fc.type_subtype == 0x05 || eapol) && wlan.addr == $Host_MAC" -2 -w $tempdir/test.cap -F pcap
+    tshark -r $tempdir/$Host_MAC-01.cap -R "(wlan.fc.type_subtype == 0x08 || wlan.fc.type_subtype == 0x05 || eapol) && wlan.addr == $Host_MAC" -2 -w $tempdir/test.cap -F pcap &>/dev/null
     local Host_SSID_loc=$(aircrack-ng "$tempdir/test.cap" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $3}')
-    local Host_MAC_loc=$(aircrack-ng "$tempdir/test.cap" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $2}'))
+    local Host_MAC_loc=$(aircrack-ng "$tempdir/test.cap" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $2}')
     if [[ "$Host_MAC_loc" == *"$Host_MAC"* ]] && [[ "$Host_SSID_loc" == *"$Host_SSID"* ]] && cowpatty -r "$tempdir/test.cap" -c | grep "Collected all necessary data to mount crack against WPA2/PSK passphrase." &>/dev/null; then
         # Save handshake
         mv $tempdir/test.cap $handshakes_dir/$Host_MAC.cap &>/dev/null
