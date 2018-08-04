@@ -1,6 +1,5 @@
 # Contributor: Alexandre Bolelli <semeion7@hotmail.com>
 # Maintainer: Alexandre Bolelli <semeion7@hotmail.com>
-# python2-scapy
 
 pkgname=handshake-cracker
 pkgver=32.55ba7da
