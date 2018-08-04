@@ -123,7 +123,7 @@ if [ "$#" -gt 0 ]; then
         crawler-dicionarioinformal -t 10 -o "${wordlist_dir}/dicionario-informal.txt"
 
         # http://www.dictionary.com/
-        crawler-dictionary -t 10 -o "${wordlist_dir}/dictionary.txt"
+#       crawler-dictionary -t 10 -o "${wordlist_dir}/dictionary.txt"
         exit 0
     fi
 

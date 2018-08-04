@@ -1,5 +1,6 @@
 # Contributor: Alexandre Bolelli <semeion7@hotmail.com>
 # Maintainer: Alexandre Bolelli <semeion7@hotmail.com>
+# python2-scapy
 
 pkgname=handshake-cracker
 pkgver=32.55ba7da
@@ -8,7 +9,7 @@ pkgdesc="Handshake capture with aircrack-ng, test with pyrit, crack with john th
 arch=('any')
 url='https://github.com/semeion/handshake-cracker'
 license=('GPL3')
-depends=('aircrack-ng' 'pyrit' 'scapy' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
+depends=('aircrack-ng' 'wireshark-cli' 'cowpatty' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
          'coreutils' 'glibc' 'sed' 'gzip' 'bzip2' 'unzip' 'wget' 'sudo' 'less' 'john' 'python2' 'python2-lxml')
 makedepends=('git')
 source=('git+https://github.com/semeion/handshake-cracker.git')

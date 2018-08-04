@@ -5,12 +5,14 @@
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
-# dependencies: john (with jumbo rules), aircrack-ng, pyrit, scapy, less
+# dependencies: john (with jumbo rules), aircrack-ng, wireshark-cli, cowpatty, less
+# Ref: https://miloserdov.org/?p=1047&PageSpeed=noscript
+# https://stackoverflow.com/questions/32042997/bash-until-loop-true-when-condition-returns-anything
 
 shopt -s extglob
 
 # Check dependencies
-dependencies=(john aircrack-ng pyrit scapy less xterm grep egrep sha1sum wc cut tr awk sudo)
+dependencies=(john aircrack-ng tshark cowpatty less xterm grep egrep sha1sum wc cut tr awk sudo)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
@@ -129,9 +131,9 @@ function get_rule {
 function session {
     local bssid="$1"
     local rule essid pyrit_output hs_status exitcode session cracked process cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
-    pyrit_output=$(pyrit -r "${handshakes_dir}/${bssid}.cap" analyze 2>&1)
-    essid=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
-    echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
+    pyrit_output=$(aircrack-ng "${handshakes_dir}/${bssid}.cap" 2>&1)
+    essid=$(echo "${pyrit_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $3}')
+    cowpatty -r "${handshakes_dir}/${bssid}.cap" -c | grep "Collected all necessary data to mount crack against WPA2/PSK passphrase." &>/dev/null
     exitcode="$?"
     if (( exitcode==0 )); then
         hs_status="${green}GOOD${transparent}"
@@ -347,10 +349,14 @@ function load_handshakes {
     for ((i=0; i<${#handshake_files[@]}; i++)); do
         handshake_filename="${handshake_files[$i]}"
         echo -n "Checking ${handshake_files[$i]} "
-        pyrit_output=$(pyrit -r "${handshake_files[$i]}" analyze 2>&1)
-        bssid[$i]=$(echo "${pyrit_output}" | grep "^#" | cut -d " " -f3 | tr '[:lower:]' '[:upper:]')
-        essid[$i]=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
-        echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
+        pyrit_output=$(aircrack-ng "${handshake_files[$i]}" 2>&1)
+        essid[$i]=$(echo "${pyrit_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $3}')
+        bssid[$i]=$(echo "${pyrit_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake)" | awk -F ' ' '{print $2}')
+#       pyrit_output=$(pyrit -r "${handshake_files[$i]}" analyze 2>&1)
+#       bssid[$i]=$(echo "${pyrit_output}" | grep "^#" | cut -d " " -f3 | tr '[:lower:]' '[:upper:]')
+#       essid[$i]=$(echo "${pyrit_output}" | grep "^#" | cut -d "(" -f2 | cut -d "'" -f2)
+#       echo "${pyrit_output}" | grep -v "AccessPoint" | grep -q 'good[*]\?,' 2>&1
+        cowpatty -r "${handshake_files[$i]}" -c | grep "Collected all necessary data to mount crack against WPA2/PSK passphrase." &>/dev/null
         exitcode[$i]="$?"
         if (( exitcode[$i]==0 )); then
             echo " ( OK )"
