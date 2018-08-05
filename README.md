@@ -117,8 +117,9 @@ Required Programs
 -----------------
 
 * aircrack-ng (airodump-ng aireplay-ng airmon-ng)
-* pyrit
-* scapy
+* cowpatty
+* wireshark-cli
+* macchanger
 * mdk3
 * xterm
 * john (jumbo version)

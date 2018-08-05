@@ -5,7 +5,7 @@
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake capturing process
-# dependencies: aircrack-ng, wireshark-cli, cowpatty, mdk3
+# dependencies: aircrack-ng, wireshark-cli, cowpatty, mdk3, macchanger
 
 shopt -s extglob
 
