@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 1.51
+# Version 1.52
 # Date: 10/10/2018
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
@@ -94,7 +94,7 @@ function top {
     echo
     echo -e "$green  ##########################################################"
     echo -e "$green  #                                                        #"
-    echo -e "$green  #            PASSWORD CRACKER 1.5 by mnemonic            #"
+    echo -e "$green  #            PASSWORD CRACKER 1.52 by mnemonic           #"
     echo -e "$green  #                                                        #"
     echo -e "$green  ########################################################## ${transparent}"
     echo
@@ -132,7 +132,8 @@ function session {
     local bssid="$1"
     local rule essid aircrack_output hs_status exitcode session cracked process cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
     aircrack_output=$(aircrack-ng "${handshakes_dir}/${bssid}.cap" 2>&1)
-    essid=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $3}')
+    #essid=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $3}')
+    essid=$(echo "${aircrack_output}" | grep -e "${bssid}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid} )).*(?= WPA \()")
     cowpatty -r "${handshakes_dir}/${bssid}.cap" -c | grep -e "Collected all necessary data to mount crack against WPA.*/PSK passphrase." &>/dev/null
     exitcode="$?"
     if (( exitcode==0 )); then
@@ -350,8 +351,9 @@ function load_handshakes {
         handshake_filename="${handshake_files[$i]}"
         echo -n "Checking ${handshake_files[$i]} "
         aircrack_output=$(aircrack-ng "${handshake_files[$i]}" 2>&1)
-        essid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $3}')
         bssid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
+#       essid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $3}')
+        essid[$i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]} )).*(?= WPA \()")
         cowpatty -r "${handshake_files[$i]}" -c | grep -e "Collected all necessary data to mount crack against WPA.*/PSK passphrase." &>/dev/null
         exitcode[$i]="$?"
         if (( exitcode[$i]==0 )); then
