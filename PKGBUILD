@@ -23,14 +23,12 @@ pkgver() {
 package()
 {
     cd "${srcdir}/${pkgname}"
-
     # Install script
     install -D -m755 crack "${pkgdir}/usr/bin/crack"
     install -D -m755 crawler-dicionarioinformal "${pkgdir}/usr/bin/crawler-dicionarioinformal"
     install -D -m755 crawler-dictionary "${pkgdir}/usr/bin/crawler-dictionary"
     install -D -m755 handshake "${pkgdir}/usr/bin/handshake"
     install -D -m755 wordlist "${pkgdir}/usr/bin/wordlist"
-
     # Install john config with custom rules
     install -D -m644 john.conf.custom "${pkgdir}/etc/john/john.conf.custom"
 }

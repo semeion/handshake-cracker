@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 2.0
+# Version 2.01
 # Date: 7 dez 2018
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
-# dependencies: john (with jumbo rules), aircrack-ng, cowpatty, less, hcxtools, hashcat
+# dependencies: john (with jumbo rules), aircrack-ng, less, hcxtools, hashcat
 # Ref: https://miloserdov.org/?p=1047&PageSpeed=noscript
 # https://stackoverflow.com/questions/32042997/bash-until-loop-true-when-condition-returns-anything
 
 shopt -s extglob
 
 # Check dependencies
-dependencies=(john aircrack-ng hcxpcaptool hashcat cowpatty less xterm grep egrep sha1sum wc cut tr awk sudo)
+dependencies=(john aircrack-ng hcxpcaptool hashcat less xterm grep egrep sha1sum wc cut tr awk sudo)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
