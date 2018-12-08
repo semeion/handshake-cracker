@@ -69,7 +69,8 @@ sanitize_words()
     # remove lines with ... at end
     grep -v '\.\.\.$' |
     # remove some simbols
-    tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
+    # tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
+    tr -d ' []|^?"*~#`!()<>:;.,=+_\t\r'\' |
     # convert to lower case
     tr '[:upper:]' '[:lower:]' |
     # sort removing duplicates

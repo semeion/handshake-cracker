@@ -83,6 +83,28 @@
 >3 <8 l Az"2[1-9][0-9][0-9]" <+
 >3 <8 l Az"[3-9][0-9][0-9][0-9]" <+
 
+[List.Rules:MyCustom1]
+# suffix lowered case word with symbol and numbers (very slow)...
+# alex#9
+-c >5 <9 <+ )?l l $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[0-9]"
+# alex#99
+-c >4 <9 <+ )?l l $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[1-9][0-9]"
+
+[List.Rules:MyCustom2]
+# inc. 1 per 1 toggle case and suffix symbol and numbers (very slow)...
+# Alex#9
+-c >5 <9 <+ )?l l T0 $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[0-9]"
+# aLEx#9
+-c >5 <9 T[1-9A-E] Q M l Tm Q C Q u Q l Q c Q X0z0 'l $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[0-9]"
+# aleX#9
+-c >5 <9 <+ )?l l Tm $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[0-9]"
+# aleX#99
+-c >4 <9 <+ )?l l T0 $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[1-9][0-9]"
+# aLEx#99
+-c >4 <9 T[1-9A-E] Q M l Tm Q C Q u Q l Q c Q X0z0 'l $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[1-9][0-9]"
+# aleX#99
+-c >4 <9 <+ )?l l Tm $[!@#$%^&*\-=_+.?|:'"({[<)}\]> ] Az"[1-9][0-9]"
+
 [List.Rules:MyCustom]
 # Delete all spaces from the word
 @?w Q

@@ -41,7 +41,7 @@ Installation on Arch Linux
 
 If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file in a directory and as normal user (not root) type:
 
-   `makepkg -sri`
+   `makepkg -sircCf`
 
 To uninstall run (as root):
 
@@ -117,6 +117,8 @@ Required Programs
 -----------------
 
 * aircrack-ng (airodump-ng aireplay-ng airmon-ng)
+* hcxtools
+* hashcat
 * cowpatty
 * wireshark-cli
 * macchanger
