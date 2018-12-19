@@ -249,7 +249,7 @@ function session {
         case "$choice" in
               1) 
                 if [ ! -f "${handshakes_dir}/${bssid}.PMKID" ] || confirm "The file already exist. OVERWRITE? (y/N): "; then
-                    rm "${handshakes_dir}/${bssid}.PMKID"
+                    rm -f "${handshakes_dir}/${bssid}.PMKID"
                     hcxpcaptool -E essidlist -I identitylist -U usernamelist -z "${handshakes_dir}/${bssid}.PMKID" "${handshakes_dir}/${bssid}.cap"
                     shopt -s nullglob
                     handshake_files=($handshakes_dir/*)
@@ -258,7 +258,7 @@ function session {
                 ;;
               2) 
                 if [ ! -f "${handshakes_dir}/${bssid}.hccapx" ] || confirm "The file already exist. OVERWRITE? (y/N): "; then
-                    rm "${handshakes_dir}/${bssid}.hccapx"
+                    rm -f "${handshakes_dir}/${bssid}.hccapx"
                     hcxpcaptool -E essidlist -I identitylist -U usernamelist -o "${handshakes_dir}/${bssid}.hccapx" "${handshakes_dir}/${bssid}.cap"
                     shopt -s nullglob
                     handshake_files=($handshakes_dir/*)
@@ -267,8 +267,8 @@ function session {
                 ;;
             d|D)
                 if confirm "DELETE this BSSID and all related files? (y/N): "; then
-                    rm "${handshakes_dir}/${fname}.*"
-                    rm "${sessions_dir}/${bssid}.*"
+                    rm -f "${handshakes_dir}/${fname}.*"
+                    rm -f "${sessions_dir}/${bssid}.*"
                     shopt -s nullglob
                     handshake_files=($handshakes_dir/*)
                     shopt -u nullglob
