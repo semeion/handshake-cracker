@@ -4,11 +4,11 @@
 pkgname=handshake-cracker
 pkgver=32.55ba7da
 pkgrel=1
-pkgdesc="Handshake capture with aircrack-ng, test with pyrit, crack with john the ripper using self-builted wordlists."
+pkgdesc="Capture handshakes with aircrack-ng, crack with hashcat using john the ripper mangled wordlists."
 arch=('any')
 url='https://github.com/semeion/handshake-cracker'
 license=('GPL3')
-depends=('aircrack-ng' 'hcxtools' 'hashcat' 'wireshark-cli' 'cowpatty' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
+depends=('aircrack-ng' 'hcxtools' 'hashcat' 'mdk3' 'xterm' 'ncurses' 'psmisc' 'gawk'
          'macchanger' 'coreutils' 'glibc' 'sed' 'gzip' 'bzip2' 'unzip' 'wget' 'sudo' 'less' 'john' 'python2' 'python2-lxml')
 #optdepends=('hcxdumptool')
 makedepends=('git')
