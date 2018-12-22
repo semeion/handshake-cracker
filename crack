@@ -267,8 +267,8 @@ function session {
                 ;;
             d|D)
                 if confirm "DELETE this BSSID and all related files? (y/N): "; then
-                    rm -f "${handshakes_dir}/${fname}.*"
-                    rm -f "${sessions_dir}/${bssid}.*"
+                    rm -f ${handshakes_dir}/${bssid}.*
+                    rm -f ${sessions_dir}/${bssid}.*
                     shopt -s nullglob
                     handshake_files=($handshakes_dir/*)
                     shopt -u nullglob
