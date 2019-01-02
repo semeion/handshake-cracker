@@ -3,13 +3,15 @@
 
 Handshake cracker
 
-Includes a tool to efficiently perform capturing of handshakes.
+Includes a tool to efficiently perform capturing of handshakes using aircrack-ng suite.
 
 It intelligently manages all the words of the dictionaries to be tested, as well as keeps a history of everything that has already been tested, so that the same attempts are not repeated.
 
 In addition to using the process of modifying words with john the ripper, it also divides the process into parts, making discoveries easier.
 
-Also includes custom rules not included in jumbo rules.
+Also includes custom rules not included in JTR jumbo rules.
+
+__The use of a GPU isn´t required, but it is highly recommended.__ A GTX 1050 Ti can perform 110 KH/s easely, while for example a CPU i5-2500 performs 5 KH/s
 
 
 Manual installation
@@ -58,17 +60,17 @@ You can safely ignore this step, the script no need be configured. But if you pr
 The config file is located in: `${HOME}/.config/handshake-cracker/scripts.conf`
 
 ```sh
-handshakes_dir=/home/example/.config/handshake-cracker/handshakes               # Handshakes directory - used by crack script
-sessions_dir=/home/example/.config/handshake-cracker/crack-sessions             # Script work directory - used by crack script
-wordlist_dir=/home/example/.config/handshake-cracker/wordlists                  # Directory to save wordlists - used by wordlist script
-wordlist=/home/example/.config/handshake-cracker/wordlists/wordlist.dic         # Password file - used by crack/wordlist scripts
-maxlength=50                                                                    # Max length of words to be used from wordlist - used by crack script
-john_incr=Digits8                                                               # John incremental mode to be used - used by crack script
-john_rule=My                                                                    # John rule to be used - used by crack script
-deauth_time=3                                                                   # Tries to Deauth Clients Quickly - used by handshake script
+handshakes_dir=/home/example/.config/handshake-cracker/handshakes                                        # Handshakes directory - used by crack script
+sessions_dir=/home/example/.config/handshake-cracker/crack-sessions                                      # Script work directory - used by crack script
+wordlist_dir=/home/example/.config/handshake-cracker/wordlists                                           # Directory to save wordlists - used by wordlist script
+wordlist=/home/example/.config/handshake-cracker/wordlists/wordlist.dic                                  # Password file - used by crack/wordlist scripts
+maxlength=63                                                                                             # Max length of words to be used from wordlist - used by crack script
+john_incr=Digits8                                                                                        # John incremental mode to be used - used by crack script
+john_rules=(Wordlist Single Extra MyCustom MyCustom1 MyCustom2 MyExtra MyExtra2 MyExtra3 NT OldOffice)   # John rules to be used - used by crack
+deauth_time=3                                                                                            # Tries to Deauth Clients Quickly - used by handshake script
 ```
 
-Do not modify the settings after starting the sessions, the configuration is an initial step prior to the crack process.
+Do not modify the settings after starting the cracking sessions, the configuration is an initial step prior to the crack process.
 
 It is also worth saying that when a new version of john the ripper comes up and you install it, it sometimes modifies the mangle rules, you should not upgrade john to a future version without first finishing your cracking sessions because The update modifying the rules may fail some cracking process.
 
@@ -119,8 +121,6 @@ Required Programs
 * aircrack-ng (airodump-ng aireplay-ng airmon-ng)
 * hcxtools
 * hashcat
-* cowpatty
-* wireshark-cli
 * macchanger
 * mdk3
 * xterm
