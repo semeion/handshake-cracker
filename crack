@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 2.02
+# Version 2.03
 # Date: 9 dez 2018
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
@@ -94,7 +94,7 @@ function top {
     echo
     echo -e "##########################################################"
     echo -e "#                                                        #"
-    echo -e "#            PASSWORD CRACKER 2.02 by mnemonic           #"
+    echo -e "#            PASSWORD CRACKER 2.03 by mnemonic           #"
     echo -e "#                                                        #"
     echo -e "##########################################################"
     echo
@@ -187,8 +187,12 @@ function session {
                     total=0
                 fi
             else
-                total=100000000
                 rule="$john_incr"
+                case "$rule" in
+                    Digits8)  total=100000000 ;;
+                    Digits9)  total=1000000000 ;;
+                    Digits10) total=10000000000 ;;
+                esac
             fi
             if [ "$total" -gt 0 ]; then
                 elapsed_porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}' 2>&1)
@@ -224,7 +228,7 @@ function session {
         echo -e "               ${cyan}John Rule${transparent} : ${rule}"
         if [ "$total" -gt 0 ]; then
         if [ $rule == "$john_incr" ]; then
-        echo -e "                ${cyan}Wordlist${transparent} : Incremental (00000000 to 99999999)"
+        echo -e "                ${cyan}Wordlist${transparent} : Incremental"
         else
         echo -e "                ${cyan}Wordlist${transparent} : ${wlst}"
         echo -e "              ${cyan}Max length${transparent} : ${yellow}${maxlength}${transparent}"
@@ -383,8 +387,14 @@ function session {
                         fi
                     fi
                 else
+                    rm -f "${sessions_dir}/${bssid}.${john_incr}.tested"
+                    rm -f "${sessions_dir}/${bssid}.rec"
+                    rm -f "${sessions_dir}/${bssid}.dic"
+                    rm -f "${sessions_dir}/${bssid}.dic.total"
+                    rm -f "${sessions_dir}/${bssid}.session"
+                    rm -f "${sessions_dir}/${bssid}.rule"
                     echo
-                    echo "No session started yet."
+                    echo "Sessions restarted."
                     echo
                     echo -ne "Press a key to return "
                     read -n1 choice
@@ -561,7 +571,8 @@ function crack_handshake {
         #~ xterm_pid=$(wmctrl -lp | grep "Cracking ${bssid}" | awk '{ print $3 }')
         if ! is_running "${bssid}"; then
 
-            # if .rec exist resume previous john crack session (hashcat option --advice-disable can be added)
+            # if .rec exist resume previous john crack session
+            # (hashcat option --advice-disable can be added)
             if [ -f "${sessions_dir}/${bssid}.rec" ]; then
                 case "${ext}" in
                     cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
@@ -645,7 +656,7 @@ function statistics {
     local rule=$(get_rule)
     if [[ ! $rule == "$john_incr" ]]; then
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-            echo "Processing, wait a few minutes..."
+            echo "Processing, please wait..."
             dict="${sessions_dir}/${bssid}.dic"
             total="$(john --wordlist=${dict} --stdout --rules=${rule} 2>&1 | wc -l)"
             echo "$total" >"${sessions_dir}/${bssid}.dic.total"

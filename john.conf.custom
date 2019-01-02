@@ -226,3 +226,15 @@ File = /usr/share/john/digits.chr
 MinLen = 8
 MaxLen = 8
 CharCount = 10
+
+[Incremental:Digits9]
+File = /usr/share/john/digits.chr
+MinLen = 8
+MaxLen = 9
+CharCount = 10
+
+[Incremental:Digits10]
+File = /usr/share/john/digits.chr
+MinLen = 8
+MaxLen = 10
+CharCount = 10
