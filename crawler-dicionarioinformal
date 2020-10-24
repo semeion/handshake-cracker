@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # crawler-dicionarioinformal v1.0
 # Author: mnemonic
-# date: 24/02/2017
+# date DDMMYY: 12/10/2020
 # based on cewl from Sam (alex@0xdeadcode.se) - http://0xdeadcode.se
 # dependences: python2, python2-lxml
 
@@ -24,6 +24,7 @@ class Crawl(threading.Thread):
 	def run(self):
 		self.url = self.firstlayerqueue.get()
 		self.success = False
+		self.url = self.url + '/'
 #		print 'IN THREAD: ' + self.url
 		while not self.success:
 		    try:
@@ -34,6 +35,7 @@ class Crawl(threading.Thread):
 			    self.success = True
 		    except:
 			    print 'THREAD: ' + self.url + ' ( read error ) - retrying...'
+			    self.url = self.url.lower()
 			    self.success = False
 		self.data = self.getContent(self.data)
 		self.wordqueue.put(self.data)
@@ -97,7 +99,8 @@ if starturl == None or outputfile == None or nrthreads == None:
 
 words = 0
 for char in lowercase:
-    url = starturl + char
+    char = char.upper()
+    url = starturl + char + '/'
     req = urllib2.Request(url, headers={'User-Agent' : "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0"}) # :)
     success = False
     while not success:

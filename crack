@@ -1,24 +1,37 @@
 #!/usr/bin/env bash
 
 # Script: crack
-# Version 2.03
-# Date: 9 dez 2018
+# Version 2.20
+# Date: 22 oct 2020
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
 # dependencies: john (with jumbo rules), aircrack-ng, less, hcxtools, hashcat
 # Ref: https://miloserdov.org/?p=1047&PageSpeed=noscript
 # https://stackoverflow.com/questions/32042997/bash-until-loop-true-when-condition-returns-anything
 
+
+# john --wordlist=wordlists/carros.txt --rules=single --stdout:63 | hashcat --hash-type 22000 handshakes/94\:46\:96\:80\:5A\:64.22000 --outfile outfile.test --workload-profile 4 --hwmon-temp-abort 80
+
+
 shopt -s extglob
 
 # Check dependencies
-dependencies=(john aircrack-ng hcxpcaptool hashcat less xterm grep egrep sha1sum wc cut tr awk sudo)
+# hcxpcaptool
+dependencies=(john aircrack-ng hcxpcapngtool hashcat less xterm grep egrep sha1sum wc cut tr awk sudo)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
         exit 1
     fi
 done
+
+# Check CUDA/OpenCL
+hashcat -I &>/dev/null
+c=$?
+if [[ $c != 0 ]]; then
+    echo "Hashcat Error ${c}: No OpenCL-compatible or CUDA-compatible platform found."
+    exit $c
+fi
 
 home="$(eval echo ~${SUDO_USER})"
 [[ ! -d "$home/.john" ]] && mkdir -p "$home/.john" &>/dev/null
@@ -94,7 +107,7 @@ function top {
     echo
     echo -e "##########################################################"
     echo -e "#                                                        #"
-    echo -e "#            PASSWORD CRACKER 2.03 by mnemonic           #"
+    echo -e "#            PASSWORD CRACKER 2.20 by mnemonic           #"
     echo -e "#                                                        #"
     echo -e "##########################################################"
     echo
@@ -130,6 +143,12 @@ function session {
     local fname="$1"
     local ext="$2"
     local rule bssid essid aircrack_output encryption workload cracked status cores msg_opt john_status total tested elapsed_porcent elapsed_time elapsed_secs necessary_secs remaining_secs
+    if [[ "${ext}" =~ ^(22000)$ ]]; then
+        aircrack_output=$(aircrack-ng "${handshakes_dir}/${fname}.cap" 2>&1)
+        bssid=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
+        essid=$(echo "${aircrack_output}" | grep -e "${bssid}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid}  )).*(?= WPA \()")
+        encryption="WPA-PBKDF2-PMKID+EAPOL"
+    fi
     if [[ "${ext}" =~ ^(cap|hccapx)$ ]]; then
         aircrack_output=$(aircrack-ng "${handshakes_dir}/${fname}.${ext}" 2>&1)
         bssid=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
@@ -141,6 +160,11 @@ function session {
         essid=$(awk -F '*' 'NR==1 {print $4}' "${handshakes_dir}/${fname}.${ext}" | tr '[:lower:]' '[:upper:]')
         essid=$(hex2string "${essid}")
         encryption="$(cat ${handshakes_dir}/${fname}.${ext} | wc -l) PMKID(s)"
+    fi
+    if [[ "${ext}" =~ ^(JOHN|john)$ ]]; then
+        bssid=$(awk -F ':' 'NR==1 {print $5}' "${handshakes_dir}/${fname}.${ext}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
+        essid=$(awk -F ':' 'NR==1 {print $1}' "${handshakes_dir}/${fname}.${ext}")
+        encryption=$(awk -F ':' 'NR==1 {print $7,$8}' "${handshakes_dir}/${fname}.${ext}")
     fi
     while [ 1 ]; do
         clear
@@ -243,7 +267,7 @@ function session {
         fi
         echo
         if [[ "${ext}" == "cap" ]]; then
-            echo -ne  "[${yellow}1${transparent}]6800 (PMKID)  [${yellow}2${transparent}]500 (hccapx)  "
+            echo -ne  "[${yellow}H${transparent}]ashcat (22000)  "
         fi
         echo -e  "[${yellow}D${transparent}]elete file"
         echo -e  "[${yellow}S${transparent}]${msg_opt} session  [${yellow}N${transparent}]ext session  [${yellow}R${transparent}]eset session"
@@ -251,19 +275,10 @@ function session {
         read -n 1 choice
         echo
         case "$choice" in
-              1) 
-                if [ ! -f "${handshakes_dir}/${bssid}.PMKID" ] || confirm "The file already exist. OVERWRITE? (y/N): "; then
-                    rm -f "${handshakes_dir}/${bssid}.PMKID"
-                    hcxpcaptool -E essidlist -I identitylist -U usernamelist -z "${handshakes_dir}/${bssid}.PMKID" "${handshakes_dir}/${bssid}.cap"
-                    shopt -s nullglob
-                    handshake_files=($handshakes_dir/*)
-                    shopt -u nullglob
-                fi
-                ;;
-              2) 
-                if [ ! -f "${handshakes_dir}/${bssid}.hccapx" ] || confirm "The file already exist. OVERWRITE? (y/N): "; then
-                    rm -f "${handshakes_dir}/${bssid}.hccapx"
-                    hcxpcaptool -E essidlist -I identitylist -U usernamelist -o "${handshakes_dir}/${bssid}.hccapx" "${handshakes_dir}/${bssid}.cap"
+            h|H) 
+                if [ ! -f "${handshakes_dir}/${bssid}.22000" ] || confirm "The file already exist. OVERWRITE? (y/N): "; then
+                    rm -f "${handshakes_dir}/${bssid}.22000"
+                    hcxpcapngtool -E essidlist -I identitylist -U usernamelist -o "${handshakes_dir}/${bssid}.22000" "${handshakes_dir}/${bssid}.cap"
                     shopt -s nullglob
                     handshake_files=($handshakes_dir/*)
                     shopt -u nullglob
@@ -288,25 +303,52 @@ function session {
                         read -n1 choice
                     else
                         if [ -f "${wordlist}" ]; then
-                            if [[ "${ext}" =~ ^(hccapx|PMKID|pmkid)$ ]]; then
-                                workload=0
-                                while (( workload < 1 || workload > 4 )); do
-                                    echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
-                                    read -n 1 workload
-                                    echo
-                                done
-                                crack_handshake "${bssid}" "${ext}" "${workload}" &
-                                sleep 3
-                            else
-                                cores=0
-                                while (( cores < 1 || cores > cpus )); do
-                                    echo -ne "${yellow}Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
-                                    read -n 1 cores
-                                    echo
-                                done
-                                crack_handshake "${bssid}" "${ext}" "${cores}" &
-                                sleep 3
-                            fi
+                            case "${ext}" in
+                                22000|hccapx|PMKID|pmkid)
+                                    workload=0
+                                    while (( workload < 1 || workload > 4 )); do
+                                        echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
+                                        read -n 1 workload
+                                        echo
+                                    done
+                                    crack_handshake "${bssid}" "${ext}" "${workload}" &
+                                    sleep 3
+                                    ;;
+                                cap)
+                                    cores=0
+                                    while (( cores < 1 || cores > cpus )); do
+                                        echo -ne "${yellow}Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
+                                        read -n 1 cores
+                                        echo
+                                    done
+                                    crack_handshake "${bssid}" "${ext}" "${cores}" &
+                                    sleep 3
+                                    ;;
+                                john)
+                                    cores=1
+                                    crack_handshake "${bssid}" "${ext}" "${cores}" &
+                                    sleep 3
+                                    ;;
+                            esac
+                            #~ if [[ "${ext}" =~ ^(hccapx|PMKID|pmkid)$ ]]; then
+                                #~ workload=0
+                                #~ while (( workload < 1 || workload > 4 )); do
+                                    #~ echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
+                                    #~ read -n 1 workload
+                                    #~ echo
+                                #~ done
+                                #~ crack_handshake "${bssid}" "${ext}" "${workload}" &
+                                #~ sleep 3
+                            #~ else
+                                #~ cores=0
+                                #~ while (( cores < 1 || cores > cpus )); do
+                                    #~ echo -ne "${yellow}Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
+                                    #~ read -n 1 cores
+                                    #~ echo
+                                #~ done
+                                #~ crack_handshake "${bssid}" "${ext}" "${cores}" &
+                                #~ sleep 3
+                            #~ fi
                         else
                             echo
                             echo "[U]pdate your wordlist first! The cracking process need a wordlist!"
@@ -348,19 +390,39 @@ function session {
                             rm -f "${sessions_dir}/${bssid}.rec"
                             rm -f "${sessions_dir}/${bssid}.dic"
                             rm -f "${sessions_dir}/${bssid}.dic.total"
-                            if [[ "${ext}" =~ ^(hccapx|PMKID|pmkid)$ ]]; then
-                                workload=0
-                                while (( workload < 1 || workload > 4 )); do
-                                    echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
-                                    read -n 1 workload
-                                    echo
-                                done
-                                crack_handshake "${bssid}" "${ext}" "${workload}" &
-                                sleep 3
-                            else                        
-                                crack_handshake "${bssid}" "${cores}" &
-                                sleep 3
-                            fi
+                            case "${ext}" in
+                                22000|hccapx|PMKID|pmkid)
+                                    workload=0
+                                    while (( workload < 1 || workload > 4 )); do
+                                        echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
+                                        read -n 1 workload
+                                        echo
+                                    done
+                                    crack_handshake "${bssid}" "${ext}" "${workload}" &
+                                    sleep 3
+                                    ;;
+                                cap)
+                                    crack_handshake "${bssid}" "${ext}" "${cores}" &
+                                    sleep 3
+                                    ;;
+                                john)
+                                    cores=1
+                                    crack_handshake "${bssid}" "${ext}" "${cores}" &
+                                    sleep 3
+                            esac
+                            #~ if [[ "${ext}" =~ ^(hccapx|PMKID|pmkid)$ ]]; then
+                                #~ workload=0
+                                #~ while (( workload < 1 || workload > 4 )); do
+                                    #~ echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
+                                    #~ read -n 1 workload
+                                    #~ echo
+                                #~ done
+                                #~ crack_handshake "${bssid}" "${ext}" "${workload}" &
+                                #~ sleep 3
+                            #~ else                        
+                                #~ crack_handshake "${bssid}" "${cores}" &
+                                #~ sleep 3
+                            #~ fi
                         fi
                     fi
                 else
@@ -443,14 +505,25 @@ function select_handshake {
                 essid[$i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
                 encryption[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -oe "WPA (.*)$")
             fi
+            if [[ "${extension[$i]}" =~ ^(22000)$ ]]; then
+                aircrack_output=$(aircrack-ng "${handshakes_dir}/${filename[$i]}.cap" 2>&1)
+                bssid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
+                essid[$i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
+                encryption[$i]="WPA-PBKDF2-PMKID+EAPOL"
+            fi
             if [[ "${extension[$i]}" =~ ^(PMKID|pmkid)$ ]]; then
                 bssid[$i]=$(awk -F '*' 'NR==1 {print $2}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
                 essid[$i]=$(awk -F '*' 'NR==1 {print $4}' "${handshake_files[$i]}" | tr '[:lower:]' '[:upper:]')
                 essid[$i]=$(hex2string "${essid[$i]}")
                 encryption[$i]="$(cat "${handshake_files[$i]}" | wc -l) PMKID(s)"
             fi
+            if [[ "${extension[$i]}" =~ ^(JOHN|john)$ ]]; then
+                bssid[$i]=$(awk -F ':' 'NR==1 {print $5}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
+                essid[$i]=$(awk -F ':' 'NR==1 {print $1}' "${handshake_files[$i]}")
+                encryption[$i]=$(awk -F ':' 'NR==1 {print $7,$8}' "${handshake_files[$i]}")
+            fi
 
-            if [[ "${extension[$i]}" =~ ^(cap|hccapx|PMKID|pmkid)$ ]]; then
+            if [[ "${extension[$i]}" =~ ^(cap|22000|hccapx|PMKID|pmkid|JOHN|john)$ ]]; then
 
                 rule="$john_incr"
                 if [ -f "${sessions_dir}/${bssid[$i]}.rule" ]; then
@@ -552,7 +625,7 @@ function crack_handshake {
     local cores="$3"
     local i=-1
     local rule dic
-    if [[ "${ext}" =~ ^(hccapx|PMKID|pmkid)$ ]]; then
+    if [[ "${ext}" =~ ^(22000|hccapx|PMKID|pmkid)$ ]]; then
         if pgrep -x hashcat; then
             exit 1
         fi
@@ -576,8 +649,10 @@ function crack_handshake {
             if [ -f "${sessions_dir}/${bssid}.rec" ]; then
                 case "${ext}" in
                     cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                    22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
                     hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
                     PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                    JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid}" ;;
                 esac
             else
                 # if ${john_incr}.tested exist incremental is completed
@@ -622,9 +697,11 @@ function crack_handshake {
                         sync
                         dic="${sessions_dir}/${bssid}.dic"
                         case "${ext}" in
-                            cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --stdout --rules=${rule} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
-                            hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --stdout --rules=${rule} | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                            PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --stdout --rules=${rule} | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                            cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                            22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                            hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                            PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                            JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
                         esac
                     else
                         # Yes. finish
@@ -634,12 +711,20 @@ function crack_handshake {
                 else
                     # Starting from john incremental mode (create *.rec)
                     case "${ext}" in
-                        cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
-                        hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                        PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                        cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                        22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                        hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                        PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
+                        JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
                     esac
-                    [ ! -f "${sessions_dir}/${bssid}.${john_incr}.tested" ] && >"${sessions_dir}/${bssid}.${john_incr}.tested" # if *.tested don´t exist, create
+                    [ ! -f "${sessions_dir}/${bssid}.${john_incr}.tested" ] && >"${sessions_dir}/${bssid}.${john_incr}.tested" # if .tested file don´t exist, create
                 fi
+            fi
+        fi
+        # john --show=LEFT sabrina.john 2>/dev/null | wc -l
+        if [[ "${ext}" =~ ^(JOHN|john)$ ]]; then
+            if ! john --show "${handshakes_dir}/${bssid}.john" | grep '0 password hashes cracked, 1 left' ; then
+                john --show "${handshakes_dir}/${bssid}.john" >"${sessions_dir}/${bssid}.cracked"
             fi
         fi
         sleep 5
