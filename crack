@@ -26,12 +26,12 @@ for c in "${dependencies[@]}"; do
 done
 
 # Check CUDA/OpenCL
-hashcat -I &>/dev/null
-c=$?
-if [[ $c != 0 ]]; then
-    echo "Hashcat Error ${c}: No OpenCL-compatible or CUDA-compatible platform found."
-    exit $c
-fi
+# hashcat -I &>/dev/null
+# c=$?
+# if [[ $c != 0 ]]; then
+#     echo "Hashcat Error ${c}: No OpenCL-compatible or CUDA-compatible platform found."
+#     exit $c
+# fi
 
 home="$(eval echo ~${SUDO_USER})"
 [[ ! -d "$home/.john" ]] && mkdir -p "$home/.john" &>/dev/null
