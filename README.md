@@ -43,7 +43,7 @@ Installation on Arch Linux
 
 If you are using __Arch Linux__ (Manjaro, BlackArch, etc) do not need to install manually, copy the `PKGBUILD` file in a directory and as normal user (not root) type:
 
-   `makepkg -sircCf`
+   `makepkg -sircC`
 
 To uninstall run (as root):
 
