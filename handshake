@@ -12,7 +12,7 @@
 shopt -s extglob
 
 # Check dependencies
-dependencies=(airodump-ng aireplay-ng airmon-ng mdk3 xterm grep egrep tput wc cut tr awk killall)
+dependencies=(airodump-ng aireplay-ng airmon-ng mdk3 xterm grep tput wc cut tr awk killall)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
@@ -31,10 +31,10 @@ fi
 
 # check if the file contains something we don't want
 configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
-if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
+if grep -E -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
 	echo "Config file is unclean, cleaning it..." >&2
 	# filter the original to a new file
-	egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+	grep -E '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
 	configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant
@@ -246,7 +246,7 @@ function select_router {
         #~ exitmode
     #~ fi
 
-    local wifionap=`cat "$tempdir/$CSVDB" | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
+    local wifionap=`cat "$tempdir/$CSVDB" | grep -E -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
     local wifionap=`expr $wifionap - 1`
     head -n "$wifionap" "$tempdir/$CSVDB" &> "$tempdir/dump-02.csv"
     tail -n "+$wifionap" "$tempdir/$CSVDB" &> "$tempdir/clientes.csv"

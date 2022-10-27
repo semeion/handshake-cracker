@@ -8,7 +8,7 @@
 # dependencies: wget, zcat, bzcat, unzip, crawler-dicionarioinformal, crawler-dictionary
 
 # Check dependencies
-dependencies=(grep egrep iconv sed sort wc cut tr touch zcat bzcat unzip wget crawler-dicionarioinformal crawler-dictionary)
+dependencies=(grep iconv sed sort wc cut tr touch zcat bzcat unzip wget crawler-dicionarioinformal crawler-dictionary)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
@@ -27,10 +27,10 @@ fi
 
 # check if the file contains something we don't want
 configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
-if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
+if grep -E -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
 	echo "Config file is unclean, cleaning it..." >&2
 	# filter the original to a new file
-	egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+	grep -E '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
 	configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant

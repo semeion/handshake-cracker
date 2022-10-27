@@ -3,6 +3,7 @@
 # Script: crack
 # Version 2.20
 # Date: 22 oct 2020
+# Modified: 26 oct 2022 (added grep -E in place of egrep)
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
 # dependencies: john (with jumbo rules), aircrack-ng, less, hcxtools, hashcat
@@ -17,7 +18,7 @@ shopt -s extglob
 
 # Check dependencies
 # hcxpcaptool
-dependencies=(john aircrack-ng hcxpcapngtool hashcat less xterm grep egrep sha1sum wc cut tr awk sudo)
+dependencies=(john aircrack-ng hcxpcapngtool hashcat less xterm grep sha1sum wc cut tr awk sudo)
 for c in "${dependencies[@]}"; do
     if ! type "$c" &>/dev/null; then
         echo "${c}: command not found"
@@ -67,10 +68,10 @@ fi
 
 # check if the file contains something we don't want
 configfile_secured='/tmp/handshake-cracker-secured-scripts.conf'
-if egrep -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
+if grep -E -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
     echo "Config file is unclean, cleaning it..." >&2
     # filter the original to a new file
-    egrep '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
+    grep -E '^#|^[^ ]*=[^;&]*'  "$configfile" > "$configfile_secured"
     configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant
