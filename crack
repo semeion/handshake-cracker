@@ -34,7 +34,7 @@ done
 #     exit $c
 # fi
 
-home="$(eval echo ~${SUDO_USER})"
+home="$(eval echo ~"${SUDO_USER}")"
 [[ ! -d "$home/.john" ]] && mkdir -p "$home/.john" &>/dev/null
 
 if [ -f "/etc/john/john.conf.custom" ]; then
@@ -49,7 +49,7 @@ else
     exit 1
 fi
 
-[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
+[[ "$PATH" =~ $PWD ]] || export PATH=$PATH:$PWD
 configdir="${home}/.config/handshake-cracker"
 [[ ! -d "$configdir" ]] && mkdir -p "$configdir" &>/dev/null
 configfile="$configdir/scripts.conf"
@@ -75,30 +75,32 @@ if grep -E -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
     configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant
+# shellcheck source=/dev/null # to ignore the error
 source "$configfile"
 
 shopt -s nullglob
-handshake_files=($handshakes_dir/*)
+handshake_files=("$handshakes_dir"/*)
 shopt -u nullglob
 cpus=$(grep -c ^processor /proc/cpuinfo)
 tempdir="/tmp"
 
-white="\033[1;37m"
-grey="\033[0;37m"
+#white="\033[1;37m"
+#grey="\033[0;37m"
 red="\033[1;31m"
 green="\033[1;32m"
 yellow="\033[1;33m"
-blue="\033[1;34m"
+#blue="\033[1;34m"
 cyan="\033[0;36m"
-cafe="\033[0;33m"
-fiuscha="\033[0;35m"
+#cafe="\033[0;33m"
+#fiuscha="\033[0;35m"
 transparent="\e[0m"
-VENTSCAN="-geometry 95x56-0+0"
-VENTHAND="-geometry 95x20-0+0"
-VENTDEAU="-geometry 80x20-0-30"
+#VENTSCAN="-geometry 95x56-0+0"
+#VENTHAND="-geometry 95x20-0+0"
+#VENTDEAU="-geometry 80x20-0-30"
 WINDOWCRACK="-geometry 80x21-0+0"
 
-if [ ! -d $sessions_dir ]; then mkdir -p $sessions_dir &>/dev/null; fi # Create script work directory
+# shellcheck disable=SC2154
+if [ ! -d "$sessions_dir" ]; then mkdir -p "$sessions_dir" &>/dev/null; fi # Create script work directory
 
 # Usage: if confirm "Are you sure? "; then ...
 confirm() { local ans IFS=; while read -rp "$1" -n1 ans; do printf '\n'; case $ans in [Yy]) return 0;; ''|[Nn]) return 1;; esac; done; };
@@ -126,7 +128,8 @@ function get_rule {
 	else
 		i=0
 	fi
-	if (($i<${#john_rules[@]})); then
+    # shellcheck disable=SC2154
+	if ((i<${#john_rules[@]})); then
 		echo "${john_rules[$i]}"
 	fi
 }
@@ -135,8 +138,8 @@ function hex2string () {
     I=0
     while [ $I -lt ${#1} ];
     do
-        echo -en "\x"${1:$I:2}
-        let "I += 2"
+        echo -en "\x""${1:$I:2}"
+        ((I += 2))
     done
 }
 
@@ -160,19 +163,19 @@ function session {
         bssid=$(awk -F '*' 'NR==1 {print $2}' "${handshakes_dir}/${fname}.${ext}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
         essid=$(awk -F '*' 'NR==1 {print $4}' "${handshakes_dir}/${fname}.${ext}" | tr '[:lower:]' '[:upper:]')
         essid=$(hex2string "${essid}")
-        encryption="$(cat ${handshakes_dir}/${fname}.${ext} | wc -l) PMKID(s)"
+        encryption="$(< "${handshakes_dir}/${fname}.${ext}" wc -l) PMKID(s)"
     fi
     if [[ "${ext}" =~ ^(JOHN|john)$ ]]; then
         bssid=$(awk -F ':' 'NR==1 {print $5}' "${handshakes_dir}/${fname}.${ext}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
         essid=$(awk -F ':' 'NR==1 {print $1}' "${handshakes_dir}/${fname}.${ext}")
         encryption=$(awk -F ':' 'NR==1 {print $7,$8}' "${handshakes_dir}/${fname}.${ext}")
     fi
-    while [ 1 ]; do
+    while true; do
         clear
         top
         rule=$(get_rule)
         if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
-            cracked="[ ${green}$(<${sessions_dir}/${bssid}.cracked)${transparent} ]"
+            cracked="[ ${green}$(<"${sessions_dir}/${bssid}.cracked")${transparent} ]"
         else
             cracked="${red}NO${transparent}"
         fi
@@ -191,11 +194,11 @@ function session {
             cores="0"
             msg_opt="tart"
         fi
-
+        # shellcheck disable=SC2154
         rule="$john_incr"
         if [ -f "${sessions_dir}/${bssid}.rule" ]; then
             n=$(<"${sessions_dir}/${bssid}.rule")
-            if (($n<${#john_rules[@]})); then
+            if ((n<${#john_rules[@]})); then
                 rule="${john_rules[$n]}"
             fi
         fi
@@ -203,11 +206,11 @@ function session {
         total=0
         
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-            john_status="$(john --status=${sessions_dir}/${bssid} 2>&1)"
+            john_status="$(john --status="${sessions_dir}/${bssid}" 2>&1)"
             tested=$(echo "$john_status" | cut -d'p' -f1)
             if [ -f "${sessions_dir}/${bssid}.rule" ]; then
                 if [ -f "${sessions_dir}/${bssid}.dic.total" ]; then
-                    total="$(<${sessions_dir}/${bssid}.dic.total)"
+                    total="$(<"${sessions_dir}/${bssid}.dic.total")"
                 else
                     total=0
                 fi
@@ -221,8 +224,8 @@ function session {
             fi
             if [ "$total" -gt 0 ]; then
                 elapsed_porcent=$(echo -e "${tested}\t${total}" | awk '{print $1 / $2 * 100}' 2>&1)
-                elapsed_time=$(echo ${john_status} | awk '{ print $2 }')
-                IFS=: read dd hh mm ss<<<$elapsed_time
+                elapsed_time=$(echo "${john_status}" | awk '{ print $2 }')
+                IFS=: read -r _dd _hh _mm _ss<<<"$elapsed_time"
                 elapsed_secs=$(echo "$elapsed_time" | awk -F: '{print 86400*$1+3600*$2+60*$3+$4}' 2>&1)
                 necessary_secs=$(echo "$elapsed_secs $elapsed_porcent" | awk '{ print $1/$2*100 }' 2>&1)
                 remaining_secs=$(echo "$necessary_secs $elapsed_secs" | awk '{ print $1-$2 }' 2>&1)
@@ -230,12 +233,13 @@ function session {
         fi
         
         # Check if wordlist was modified
+        # shellcheck disable=SC2154
         if [ -f "${wordlist}" ]; then
-            wlst="$(basename ${wordlist})"
+            wlst="$(basename "${wordlist}")"
             [ -f "${sessions_dir}/${bssid}.sha1sum" ] && saved_hash=$(<"${sessions_dir}/${bssid}.sha1sum") || saved_hash=0
             dict_hash=$(sha1sum "${wordlist}")
             if [ "$saved_hash" != "$dict_hash" ]; then
-                wlst="$(basename ${wordlist}) (${green}NEW WORDS FOUND${transparent})"
+                wlst="$(basename "${wordlist}") (${green}NEW WORDS FOUND${transparent})"
             fi
         else
             wlst="${red}NONE${transparent} (update or set a wordlist)"
@@ -252,19 +256,19 @@ function session {
         echo -e "                 ${cyan}Cracked${transparent} : ${cracked}"
         echo -e "               ${cyan}John Rule${transparent} : ${rule}"
         if [ "$total" -gt 0 ]; then
-        if [ $rule == "$john_incr" ]; then
+        if [ "$rule" == "$john_incr" ]; then
         echo -e "                ${cyan}Wordlist${transparent} : Incremental"
         else
         echo -e "                ${cyan}Wordlist${transparent} : ${wlst}"
         echo -e "              ${cyan}Max length${transparent} : ${yellow}${maxlength}${transparent}"
         fi
-        echo -e "     ${cyan}Session total words${transparent} : $(printf "%'.f\n" ${total})"
-        echo -e "    ${cyan}Session tested words${transparent} : $(printf "%'.f\n" ${tested}) ( ${yellow}${elapsed_porcent}%${transparent} )"
-        echo -e " ${cyan}Session total (D:H:M:S)${transparent} : $(show_time ${necessary_secs})"
-        echo -e "${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time ${remaining_secs})${transparent}"
+        echo -e "     ${cyan}Session total words${transparent} : $(printf "%'.f\n" "${total}")"
+        echo -e "    ${cyan}Session tested words${transparent} : $(printf "%'.f\n" "${tested}") ( ${yellow}${elapsed_porcent}%${transparent} )"
+        echo -e " ${cyan}Session total (D:H:M:S)${transparent} : $(show_time "${necessary_secs}")"
+        echo -e "${cyan}Time remaining (D:H:M:S)${transparent} : ${yellow}$(show_time "${remaining_secs}")${transparent}"
         fi
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
-        echo -e "    ${cyan}Time spent (D:H:M:S)${transparent} : $(echo ${john_status} | awk '{ print $2 }')"
+        echo -e "    ${cyan}Time spent (D:H:M:S)${transparent} : $(echo "${john_status}" | awk '{ print $2 }')"
         fi
         echo
         if [[ "${ext}" == "cap" ]]; then
@@ -273,7 +277,7 @@ function session {
         echo -e  "[${yellow}D${transparent}]elete file"
         echo -e  "[${yellow}S${transparent}]${msg_opt} session  [${yellow}N${transparent}]ext session  [${yellow}R${transparent}]eset session"
         echo -ne "[${yellow}V${transparent}]iew current  [${yellow}C${transparent}]ompleted  s[${yellow}T${transparent}]atistics  [${yellow}B${transparent}]ack): "
-        read -n 1 choice
+        read -r -n 1 choice
         echo
         case "$choice" in
             h|H) 
@@ -281,16 +285,16 @@ function session {
                     rm -f "${handshakes_dir}/${bssid}.22000"
                     hcxpcapngtool -E essidlist -I identitylist -U usernamelist -o "${handshakes_dir}/${bssid}.22000" "${handshakes_dir}/${bssid}.cap"
                     shopt -s nullglob
-                    handshake_files=($handshakes_dir/*)
+                    handshake_files=("$handshakes_dir"/*)
                     shopt -u nullglob
                 fi
                 ;;
             d|D)
                 if confirm "DELETE this BSSID and all related files? (y/N): "; then
-                    rm -f ${handshakes_dir}/${bssid}.*
-                    rm -f ${sessions_dir}/${bssid}.*
+                    rm -f "${handshakes_dir:?}/${bssid:?}.*"
+                    rm -f "${sessions_dir:?}/${bssid:?}.*"
                     shopt -s nullglob
-                    handshake_files=($handshakes_dir/*)
+                    handshake_files=("$handshakes_dir"/*)
                     shopt -u nullglob
                     break
                 fi
@@ -301,7 +305,7 @@ function session {
                 else
                     if [ -f "${sessions_dir}/${bssid}.cracked" ]; then
                         echo -ne "The handshake was cracked in last process. Password found: ${cracked} "
-                        read -n1 choice
+                        read -r -n1 choice
                     else
                         if [ -f "${wordlist}" ]; then
                             case "${ext}" in
@@ -309,7 +313,7 @@ function session {
                                     workload=0
                                     while (( workload < 1 || workload > 4 )); do
                                         echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
-                                        read -n 1 workload
+                                        read -r -n 1 workload
                                         echo
                                     done
                                     crack_handshake "${bssid}" "${ext}" "${workload}" &
@@ -319,7 +323,7 @@ function session {
                                     cores=0
                                     while (( cores < 1 || cores > cpus )); do
                                         echo -ne "${yellow}Number of CPU cores to use (${transparent}${yellow}1${transparent}-${yellow}${cpus}${transparent}): "
-                                        read -n 1 cores
+                                        read -r -n 1 cores
                                         echo
                                     done
                                     crack_handshake "${bssid}" "${ext}" "${cores}" &
@@ -358,7 +362,7 @@ function session {
                             echo "${configfile}"
                             echo
                             echo -ne "Press a key to return "
-                            read -n1 choice
+                            read -r -n1 choice
                         fi
                     fi
                 fi
@@ -371,7 +375,7 @@ function session {
                     echo "No wordlist session was started."
                     echo
                     echo -ne "Press a key to return "
-                    read -n1 choice
+                    read -r -n1 choice
                 fi
                 ;;
             c|C)
@@ -396,7 +400,7 @@ function session {
                                     workload=0
                                     while (( workload < 1 || workload > 4 )); do
                                         echo -ne "${yellow}Hashcat workload-profile to use (${transparent}${yellow}1${transparent}-${yellow}4${transparent}): "
-                                        read -n 1 workload
+                                        read -r -n 1 workload
                                         echo
                                     done
                                     crack_handshake "${bssid}" "${ext}" "${workload}" &
@@ -431,7 +435,7 @@ function session {
                     echo "No session started yet."
                     echo
                     echo -ne "Press a key to return "
-                    read -n1 choice
+                    read -r -n1 choice
                 fi
                 ;;
             r|R)
@@ -460,7 +464,7 @@ function session {
                     echo "Sessions restarted."
                     echo
                     echo -ne "Press a key to return "
-                    read -n1 choice
+                    read -r -n1 choice
                 fi
                 ;;
             t|T)
@@ -469,7 +473,7 @@ function session {
                 else
                     echo "Statistics is already being performed for this session!"
                     echo "Press a key to return"
-                    read -n1 choice
+                    read -r -n1 choice
                 fi
                 ;;
             b|B|q|Q)
@@ -485,11 +489,12 @@ function print {
     [ "$length" -gt "$size" ] && length="${size}"
     local spaces=$(( "$size" - "$length" ))
     printf "%.${size}s" "${2}"
-    printf ' %.0s' $(eval "echo {0.."$(($spaces))"}");
+    # shellcheck disable=SC2046
+    printf " %.0s" $(eval "echo {0.."$((spaces))"}");
 }
 
 function select_handshake {
-    local status n rule order cracked cores
+    local status n rule cracked cores
     while [ 1 ]; do
         clear
         top
@@ -497,31 +502,31 @@ function select_handshake {
         echo "---- -----------------  ------  -------  --------------- ------  ----------------- ------------------------------"
         for ((i=0; i<${#handshake_files[@]}; i++)); do
             # load handshakes
-            extension[$i]="${handshake_files[$i]##*.}"
-            filename[$i]="${handshake_files[$i]##*/}"
-            filename[$i]="${filename[$i]%.*}"
+            extension[i]="${handshake_files[$i]##*.}"
+            filename[i]="${handshake_files[$i]##*/}"
+            filename[i]="${filename[$i]%.*}"
             if [[ "${extension[$i]}" =~ ^(cap|hccapx)$ ]]; then
                 aircrack_output=$(aircrack-ng "${handshake_files[$i]}" 2>&1)
-                bssid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
-                essid[$i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
-                encryption[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -oe "WPA (.*)$")
+                bssid[i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
+                essid[i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
+                encryption[i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -oe "WPA (.*)$")
             fi
             if [[ "${extension[$i]}" =~ ^(22000)$ ]]; then
                 aircrack_output=$(aircrack-ng "${handshakes_dir}/${filename[$i]}.cap" 2>&1)
-                bssid[$i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
-                essid[$i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
-                encryption[$i]="WPA-PBKDF2-PMKID+EAPOL"
+                bssid[i]=$(echo "${aircrack_output}" | grep -P "([A-F0-9]{2}:){5}[A-F0-9]{2}" | grep -e "WPA ([0-9] handshake" | awk -F ' ' '{print $2}')
+                essid[i]=$(echo "${aircrack_output}" | grep -e "${bssid[$i]}" | grep -e "WPA ([0-9] handshake" | grep -Po "(?<=(${bssid[$i]}  )).*(?= WPA \()")
+                encryption[i]="WPA-PBKDF2-PMKID+EAPOL"
             fi
             if [[ "${extension[$i]}" =~ ^(PMKID|pmkid)$ ]]; then
-                bssid[$i]=$(awk -F '*' 'NR==1 {print $2}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
-                essid[$i]=$(awk -F '*' 'NR==1 {print $4}' "${handshake_files[$i]}" | tr '[:lower:]' '[:upper:]')
-                essid[$i]=$(hex2string "${essid[$i]}")
-                encryption[$i]="$(cat "${handshake_files[$i]}" | wc -l) PMKID(s)"
+                bssid[i]=$(awk -F '*' 'NR==1 {print $2}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
+                essid[i]=$(awk -F '*' 'NR==1 {print $4}' "${handshake_files[$i]}" | tr '[:lower:]' '[:upper:]')
+                essid[i]=$(hex2string "${essid[$i]}")
+                encryption[i]="$(<"${handshake_files[$i]}" wc -l) PMKID(s)"
             fi
             if [[ "${extension[$i]}" =~ ^(JOHN|john)$ ]]; then
-                bssid[$i]=$(awk -F ':' 'NR==1 {print $5}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
-                essid[$i]=$(awk -F ':' 'NR==1 {print $1}' "${handshake_files[$i]}")
-                encryption[$i]=$(awk -F ':' 'NR==1 {print $7,$8}' "${handshake_files[$i]}")
+                bssid[i]=$(awk -F ':' 'NR==1 {print $5}' "${handshake_files[$i]}" | sed -e 's/\([0-9A-Fa-f]\{2\}\)/\1:/g' -e 's/\(.*\):$/\1/' | tr '[:lower:]' '[:upper:]')
+                essid[i]=$(awk -F ':' 'NR==1 {print $1}' "${handshake_files[$i]}")
+                encryption[i]=$(awk -F ':' 'NR==1 {print $7,$8}' "${handshake_files[$i]}")
             fi
 
             if [[ "${extension[$i]}" =~ ^(cap|22000|hccapx|PMKID|pmkid|JOHN|john)$ ]]; then
@@ -529,7 +534,7 @@ function select_handshake {
                 rule="$john_incr"
                 if [ -f "${sessions_dir}/${bssid[$i]}.rule" ]; then
                     n=$(<"${sessions_dir}/${bssid[$i]}.rule")
-                    if (($n<${#john_rules[@]})); then
+                    if ((n<${#john_rules[@]})); then
                         rule="${john_rules[$n]}"
                     fi
                 fi
@@ -566,7 +571,7 @@ function select_handshake {
         case "$choice" in
             +([0-9]))
                 if (( choice > 0 && choice <= ${#handshake_files[@]} )); then
-                    choice=$(($choice-1))
+                    choice=$((choice-1))
                     session "${filename[$choice]}" "${extension[$choice]}"
                 else
                     select_handshake
@@ -576,7 +581,7 @@ function select_handshake {
                 echo -n " "
                 sudo handshake
                 shopt -s nullglob
-                handshake_files=($handshakes_dir/*)
+                handshake_files=("$handshakes_dir"/*)
                 shopt -u nullglob
                 ;;
             u|U)
@@ -589,7 +594,7 @@ function select_handshake {
                     wordlist --add
                 fi
                 echo "Press a key to return"
-                read -n1 choice
+                read -r -n1 choice
                 ;;
             q|Q)
                 exit
@@ -599,8 +604,9 @@ function select_handshake {
 }
 
 function is_running {
-    local bssid="$1"
-    local john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
+    local bssid john_pid
+    bssid="$1"
+    john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
     if [ "${john_pid}" ]; then
         return 0
     else
@@ -609,8 +615,8 @@ function is_running {
 }
 
 function stop {
-    local bssid="$1"
-    local john_pid
+    local bssid john_pid
+    bssid="$1"
     john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
     while [ "${john_pid}" ]; do
         rm -f "${sessions_dir}/${bssid}.run"
@@ -635,13 +641,14 @@ function crack_handshake {
     if [[ ! "$bssid" =~ ^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$ ]] || (( cores < 1 || cores > cpus )) || is_running "${bssid}"; then
         exit 1
     fi
-    local biggest=$(wc -L "${wordlist}" | cut -d' ' -f1) # biggest word in wordlist
+    local biggest
+    biggest=$(wc -L "${wordlist}" | cut -d' ' -f1) # biggest word in wordlist
     if (( maxlength > biggest )); then
         maxlength="${biggest}"
     fi
     rule=$(get_rule)
-    >"${sessions_dir}/${bssid}.run"
-    while (($i<${#john_rules[@]})) && [ ! -f "${sessions_dir}/${bssid}.cracked" ] && [ -f "${sessions_dir}/${bssid}.run" ]; do
+    echo >"${sessions_dir}/${bssid}.run"
+    while ((i<${#john_rules[@]})) && [ ! -f "${sessions_dir}/${bssid}.cracked" ] && [ -f "${sessions_dir}/${bssid}.run" ]; do
         #~ xterm_pid=$(wmctrl -lp | grep "Cracking ${bssid}" | awk '{ print $3 }')
         if ! is_running "${bssid}"; then
 

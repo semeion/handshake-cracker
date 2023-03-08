@@ -11,7 +11,7 @@ In addition to using the process of modifying words with john the ripper, it als
 
 Also includes custom rules not included in JTR jumbo rules.
 
-__The use of a GPU isn´t required, but it is highly recommended.__ A GTX 1050 Ti can perform 110 KH/s easely, while for example a CPU i5-2500 performs 5 KH/s
+__The use of a GPU isn´t required, but it is highly recommended.__ A GTX 1050 Ti can perform 130 KH/s easely, while for example a CPU i5-2500 performs 5 KH/s
 
 
 Manual installation
@@ -120,9 +120,12 @@ Required Programs
 
 * aircrack-ng (airodump-ng aireplay-ng airmon-ng)
 * hcxtools
+* cowpatty
+* python
+* python-lxml
 * hashcat
 * macchanger
-* mdk3
+* mdk4
 * xterm
 * john (jumbo version)
 * less
