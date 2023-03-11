@@ -5,7 +5,8 @@
 # Date: 15/03/2017
 # Author: mnemonic AKA semeion
 # Description: Automates the wordlist build process (this script was made for personal use)
-# dependencies: wget, zcat, bzcat, unzip, crawler-dicionarioinformal, crawler-dictionary
+# Dependencies: wget, zcat, bzcat, unzip, crawler-dicionarioinformal, crawler-dictionary
+# Revision 09 mar 2023 - v1.1 - fixed some bugs and added OUI vendor names support
 
 # Check dependencies
 dependencies=(grep iconv sed sort wc cut tr touch zcat bzcat unzip wget crawler-dicionarioinformal crawler-dictionary)
@@ -16,8 +17,8 @@ for c in "${dependencies[@]}"; do
     fi
 done
 
-home="$(eval echo ~${SUDO_USER})"
-[[ "$PATH" =~ "$PWD" ]] || export PATH=$PATH:$PWD
+home="$(eval echo ~"${SUDO_USER}")"
+[[ "$PATH" =~ $PWD ]] || export PATH=$PATH:$PWD
 configdir="${home}/.config/handshake-cracker"
 configfile="$configdir/scripts.conf"
 if [ ! -f "$configfile" ]; then
@@ -34,8 +35,10 @@ if grep -E -q -v '^#|^[^ ]*=[^;]*' "$configfile"; then
 	configfile="$configfile_secured"
 fi
 # now source it, either the original or the filtered variant
+# shellcheck source=/dev/null # to ignore the error
 source "$configfile"
 
+# shellcheck disable=SC2154
 wordlistdiff="${wordlist}.diff"                                         # Wordlist with new words to be added
 path_temp="/tmp"                                                        # temp dir
 script_filename="${0##*/}"                                              # name used to create temp files
@@ -45,10 +48,10 @@ show_usage()
     echo "GNU ${script_filename} v1, Wordslist utility (http://semeion.duckdns.org)"
     echo "usage: ${script_filename} [OPTION] [FILE]"
     echo "OPTIONS:"
-    echo " --add             Add $(basename ${wordlistdiff}) to $(basename ${wordlist})"
+    echo " --add             Add $(basename "${wordlistdiff}") to $(basename "${wordlist}")"
     echo " --get             Download dictionaries from websites and save with .txt extension"
-    echo " --makediff        Generate $(basename ${wordlistdiff}) with the new words from saved *.txt files"
-    echo " --diff <file>     Print to stdout diff/new words from <file> not included in $(basename ${wordlist})"
+    echo " --makediff        Generate $(basename "${wordlistdiff}") with the new words from saved *.txt files"
+    echo " --diff <file>     Print to stdout diff/new words from <file> not included in $(basename "${wordlist}")"
     echo "filename           Print a sanetized 'filename' to stdout"
     exit 1
 }
@@ -56,24 +59,81 @@ show_usage()
 sanitize_words()
 {
     local filename="$1"
-    from_encoding="$(file -bi ${filename} | cut -f2 -d'=')"
+    from_encoding="$(file -bi "${filename}" | cut -f2 -d'=')"
     if [[ "${from_encoding}" == *"binary"* ]]; then
         return 0
     fi
     if [[ "${from_encoding}" == *"unknown"* ]]; then
-        #from_encoding='UTF-8'                                          # maybe you want use
+        # from_encoding='UTF-8'                                          # maybe you want use
         from_encoding='ISO-8859-1'
     fi
     # convert format to ASCII removing acents
     iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
     # remove lines with ... at end
-    grep -v '\.\.\.$' |
+#   grep -v '\.\.\.$' |
     # remove some simbols
-    tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
+#   tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
     # convert to lower case
-    tr '[:upper:]' '[:lower:]' |
+#   tr '[:upper:]' '[:lower:]' |
     # sort removing duplicates
     sort -u
+}
+
+get_oui() {
+        # http://standards-oui.ieee.org/oui.txt
+        # command | cut -c1-8
+        # echo ${word:1:3}
+        # cat oui.txt | cut -c 11- | grep -o '\w*' | less
+        CURL=$(which curl 2>/dev/null)
+        WGET=$(which wget 2>/dev/null)
+        OUI_DOWNLOAD_URL="http://standards-oui.ieee.org/oui.txt"
+        # shellcheck disable=SC2154
+        OUI="${configdir}/vendors.oui"
+        OUI_TMP="${configdir}/vendors.tmp"
+
+        if [ "${CURL}" ] || [ "${WGET}" ]; then
+            # Delete previous partially downloaded file (if the script was aborted)
+            rm -f "${OUI_TMP:?}" >/dev/null 2>/dev/null
+
+            # Download it
+            echo "[*] Downloading IEEE OUI file..."
+
+            if [ "${WGET}" ]; then
+                ${WGET} ${OUI_DOWNLOAD_URL} -O "${OUI_TMP}" >/dev/null 2>/dev/null
+            else
+                ${CURL} -L ${OUI_DOWNLOAD_URL} > "${OUI_TMP}" 2>/dev/null
+            fi
+            # shellcheck disable=SC2181
+            if [ "${?}" -ne 0 ]; then
+                echo "[*] Error: Failed to download OUI list, aborting..."
+                exit 1
+            fi
+
+            # Parse the downloaded OUI list
+            echo "[*] Parsing OUI file..."
+
+            # Keep the previous file
+            if [ -f "${OUI}" ]; then
+                mv "${OUI}" "${OUI}-old"
+            fi
+
+            # Parse it
+            grep "(hex)" "${OUI_TMP}" | sed 's/^[ \t]*//g;s/[ \t]*$//g' | awk '{gsub(/-/,":",$1); sub(/\(hex\)/, "",$2); print}' > "${OUI}"
+            # shellcheck disable=SC2181
+            if [ "${?}" -ne 0 ]; then
+                echo "[*] Error: Failed to parse OUI, aborting..."
+                exit 1
+            fi
+            # shellcheck disable=SC2154
+            <"${OUI}" cut -c 11- | grep -o '\w*' >"${wordlist_dir}"/oui.txt
+
+            # Cleanup
+            rm -f "${OUI_TMP:?}"
+            echo "[*] ${OUI} file successfully downloaded"
+        else
+            echo "[*] Please install curl or wget to update OUI list"
+            exit 1
+        fi
 }
 
 #if [[ "$#" -eq 0 ]]; then
@@ -84,27 +144,30 @@ if [ "$#" -gt 0 ]; then
     fi
 
     if [[ "$1" == '--get' ]]; then
+        get_oui
+
         # https://dumps.wikimedia.org/ptwiktionary/latest/
         echo "Downloading https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz"
         wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/ptwiktionary" https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz
-        zcat ${wordlist_dir}/ptwiktionary/ptwiktionary-latest-all-titles.gz | awk -F' ' '{print $2}' | sed -e 's/[\r\t]//g' | grep -v '[!~"$%&'\''()*+.;:=?^@/|#<>].*$' | grep -v '^[-,].*$' | grep -v '[0-9]' \
-        >"${wordlist_dir}/ptwiktionary-latest-all-titles.txt"
+        zcat "${wordlist_dir}"/ptwiktionary/ptwiktionary-latest-all-titles.gz | awk -F' ' '{print $2}' | sed -e 's/[\r\t]//g' | grep -v '[!~"$%&'\''()*+.;:=?^@/|#<>].*$' | grep -v '^[-,].*$' | grep -v '[0-9]' \
+        tr -d ' []|^?"*~#`!()<>:;.,=\+\-_\/\t\r'\' >"${wordlist_dir}/ptwiktionary-latest-all-titles.txt"
 
         # http://www.dicionario-aberto.net/estaticos/sources.html
         for x in {{A..Z},Geo,Names}; do
             echo "Downloading http://www.dicionario-aberto.net/txts/${x}.txt.bz2"
-            while [ 1 ]; do
-                wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/dicionario-aberto" http://www.dicionario-aberto.net/txts/${x}.txt.bz2
-                if [ $? = 0 ]; then break; fi; # check return value, break if successful (0)
+            while true; do
+                if wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/dicionario-aberto" http://www.dicionario-aberto.net/txts/"${x}".txt.bz2; then
+                    break
+                fi
                 sleep 1s;
             done;
         done
-        bzcat -c ${wordlist_dir}/dicionario-aberto/*.txt.bz2 | grep '^*.**,$' >"${wordlist_dir}/dicionario-aberto.txt"
+        bzcat -c "${wordlist_dir}"/dicionario-aberto/*.txt.bz2 | grep '^*.**,$' | tr -d ' []|^?"*~#`!()<>:;.,=\+\-_\/\t\r'\' >"${wordlist_dir}/dicionario-aberto.txt"
 
         # http://pt-br.libreoffice.org/projetos/vero
         echo "Downloading http://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/VeroptBRV320AOC.oxt"
         wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/libreoffice-vero" http://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/VeroptBRV320AOC.oxt
-        unzip -p ${wordlist_dir}/libreoffice-vero/VeroptBRV320AOC.oxt pt_BR.dic | awk -F'/' '{print $1}' >"${wordlist_dir}/libreoffice-vero.txt"
+        unzip -p "${wordlist_dir}"/libreoffice-vero/VeroptBRV320AOC.oxt pt_BR.dic | awk -F'/' '{print $1}' >"${wordlist_dir}/libreoffice-vero.txt"
 
         # http://www.openwall.com/lists/john-users/2007/06/05/2
         # http://mirrors.kernel.org/openwall/wordlists/
@@ -117,13 +180,17 @@ if [ "$#" -gt 0 ]; then
         wget --no-verbose -c -r -np -nH -e robots=off -R "index.html*" -P "${wordlist_dir}" http://mirrors.kernel.org/openwall/wordlists/languages/English/
         echo "Downloading http://mirrors.kernel.org/openwall/wordlists/passwords/"
         wget --no-verbose -c -r -np -nH -e robots=off -R "index.html*" -P "${wordlist_dir}" http://mirrors.kernel.org/openwall/wordlists/passwords/
-        zcat ${wordlist_dir}/openwall/wordlists/passwords/* ${wordlist_dir}/openwall/wordlists/languages/English/3-large/* ${wordlist_dir}/openwall/wordlists/languages/English/4-extra/* | grep -v '^#!comment:' >"${wordlist_dir}/openwall-english.txt"
+        zcat "${wordlist_dir}"/openwall/wordlists/passwords/* "${wordlist_dir}"/openwall/wordlists/languages/English/3-large/* "${wordlist_dir}"/openwall/wordlists/languages/English/4-extra/* | grep -v '^#!comment:' >"${wordlist_dir}/openwall-english.txt"
 
         # http://www.dicionarioinformal.com.br/
-        crawler-dicionarioinformal -t 10 -o "${wordlist_dir}/dicionario-informal.txt"
+        crawler-dicionarioinformal -t 10 -o "${wordlist_dir}/dicionario-informal.tmp"
+        <"${wordlist_dir}/dicionario-informal.tmp" grep -v '\.\.\.$' | \
+        tr -d ' []|^?"*~#`!()<>:;.,=\+\-_\/\t\r'\' >>"${wordlist_dir}/dicionario-informal.txt"
+        rm -f "${wordlist_dir:?}/dicionario-informal.tmp" &>/dev/null
 
         # http://www.dictionary.com/
 #       crawler-dictionary -t 10 -o "${wordlist_dir}/dictionary.txt"
+
         exit 0
     fi
 
@@ -134,13 +201,15 @@ if [ "$#" -gt 0 ]; then
         if [ ! -e "${wordlistdiff}" ]; then
             touch "${wordlistdiff}"
         fi
-        >"${path_temp}/${script_filename}.tmp"
-        for f in ${wordlist_dir}/*.txt; do
+        echo -n >"${path_temp}/${script_filename}.tmp"
+        for f in "${wordlist_dir}"/*.txt; do
             echo "Adding new words from ${f} to ${path_temp}/${script_filename}.tmp"
             # dictionary-file subtraction from pipe (add diff only)
             sanitize_words "$f" | grep -vxF -f "${wordlist}" >>"${path_temp}/${script_filename}.tmp"
         done
+        # shellcheck disable=SC2126
         words_added="$(sanitize_words "${path_temp}/${script_filename}.tmp" | grep -vxF -f "${wordlistdiff}" | wc -l)"
+        # shellcheck disable=SC2094
         sanitize_words "${path_temp}/${script_filename}.tmp" | grep -vxF -f "${wordlistdiff}" >>"${wordlistdiff}"
 
         echo "${path_temp}/${script_filename}.tmp with ${words_added} new words added to ${wordlistdiff}"
@@ -155,7 +224,9 @@ if [ "$#" -gt 0 ]; then
         if [ ! -e "${wordlist}" ] ; then
             touch "${wordlist}"
         fi
+        # shellcheck disable=SC2126
         words_added="$(sanitize_words "${wordlistdiff}" | grep -vxF -f "${wordlist}" | wc -l)"
+        # shellcheck disable=SC2094
         sanitize_words "${wordlistdiff}" | grep -vxF -f "${wordlist}" >>"${wordlist}"
         echo "${wordlistdiff} with ${words_added} new words, added to ${wordlist}"
         rm -f "${wordlistdiff}"
@@ -167,7 +238,7 @@ if [ "$#" -gt 0 ]; then
             show_usage
         fi
         # dictionary-file subtraction from pipe (show diff only)
-        cat "$2" | grep -vxF -f "${wordlist}"
+        <"$2" grep -vxF -f "${wordlist}"
         exit 0
     fi
 

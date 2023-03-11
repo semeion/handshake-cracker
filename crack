@@ -4,6 +4,10 @@
 # Version 2.20
 # Date: 22 oct 2020
 # Modified: 26 oct 2022 (added grep -E in place of egrep)
+# Revision: 09 mar 2023 v 2.30
+#      - removed hashcat --hwmon-temp-abort 80 parameter
+#      - code verified using shellcheck and some bugs fixed
+#      - added vendor OUI name
 # Author: mnemonic AKA semeion
 # Description: Automate the handshake cracking process
 # dependencies: john (with jumbo rules), aircrack-ng, less, hcxtools, hashcat
@@ -82,6 +86,7 @@ shopt -s nullglob
 handshake_files=("$handshakes_dir"/*)
 shopt -u nullglob
 cpus=$(grep -c ^processor /proc/cpuinfo)
+# shellcheck disable=SC2034
 tempdir="/tmp"
 
 #white="\033[1;37m"
@@ -97,7 +102,7 @@ transparent="\e[0m"
 #VENTSCAN="-geometry 95x56-0+0"
 #VENTHAND="-geometry 95x20-0+0"
 #VENTDEAU="-geometry 80x20-0-30"
-WINDOWCRACK="-geometry 80x21-0+0"
+#WINDOWCRACK="-geometry 80x21-0+0"
 
 # shellcheck disable=SC2154
 if [ ! -d "$sessions_dir" ]; then mkdir -p "$sessions_dir" &>/dev/null; fi # Create script work directory
@@ -110,7 +115,7 @@ function top {
     echo
     echo -e "##########################################################"
     echo -e "#                                                        #"
-    echo -e "#            PASSWORD CRACKER 2.20 by mnemonic           #"
+    echo -e "#            PASSWORD CRACKER 2.30 by mnemonic           #"
     echo -e "#                                                        #"
     echo -e "##########################################################"
     echo
@@ -180,6 +185,7 @@ function session {
             cracked="${red}NO${transparent}"
         fi
         if is_running "${bssid}"; then
+            # shellcheck disable=2009
             cores=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] aircrack-ng -p .*${bssid}.cap$" | awk '{ print $10 }')
             if [ -z "$cores" ]; then
                 cores=$(nvidia-smi -i 0 --query-gpu=utilization.gpu --format=csv,noheader | tr -d ' ')
@@ -218,8 +224,8 @@ function session {
                 rule="$john_incr"
                 case "$rule" in
                     Digits8)  total=100000000 ;;
-                    Digits9)  total=1000000000 ;;
-                    Digits10) total=10000000000 ;;
+                    Digits9)  total=1100000000 ;;
+                    Digits10) total=11000000000 ;;
                 esac
             fi
             if [ "$total" -gt 0 ]; then
@@ -249,6 +255,9 @@ function session {
         echo -e "                ${cyan}Filename${transparent} : ${fname}.${ext}"
         fi
         echo -e "                   ${cyan}BSSID${transparent} : ${bssid}"
+        [ -e "${configdir}"/oui.txt ] && \
+        echo -e "                  ${cyan}Vendor${transparent} : $(grep -Fi "${bssid:0:8}" "${configdir}"/oui.txt | cut -c 11- | tr -d '\n\r')"
+        echo -e "                   ${cyan}ESSID${transparent} : ${essid}"
         echo -e "                   ${cyan}ESSID${transparent} : ${essid}"
         echo -e "                  ${cyan}Format${transparent} : ${ext}"
         echo -e "              ${cyan}Encryption${transparent} : ${encryption}"
@@ -390,6 +399,7 @@ function session {
                 if is_running "${bssid}"; then
                     if confirm "Do you want to cancel the current session and go to the next one? (y/N): "; then
                         if confirm "You will lose the current time spent. Are you sure? (y/N): "; then
+                            # shellcheck disable=2009
                             cores=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] aircrack-ng -p .*${bssid}.cap$" | awk '{ print $10 }')
                             stop "${bssid}"
                             rm -f "${sessions_dir}/${bssid}.rec"
@@ -495,7 +505,7 @@ function print {
 
 function select_handshake {
     local status n rule cracked cores
-    while [ 1 ]; do
+    while true; do
         clear
         top
         echo "NR.  BSSID              FORMAT  STATUS   JOHN RULE       CRAKED  ESSID             ENCRYPTION/CONTENT"
@@ -566,7 +576,7 @@ function select_handshake {
         done
         echo
         echo -ne "[${yellow}C${transparent}]apture handshake  [${yellow}U${transparent}]pdate wordlist  [${yellow}Q${transparent}]uit): "
-        read choice
+        read -r choice
 
         case "$choice" in
             +([0-9]))
@@ -606,6 +616,7 @@ function select_handshake {
 function is_running {
     local bssid john_pid
     bssid="$1"
+    # shellcheck disable=2009
     john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
     if [ "${john_pid}" ]; then
         return 0
@@ -617,11 +628,13 @@ function is_running {
 function stop {
     local bssid john_pid
     bssid="$1"
+    # shellcheck disable=2009
     john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
     while [ "${john_pid}" ]; do
         rm -f "${sessions_dir}/${bssid}.run"
         kill -INT "${john_pid}"
         sleep 1
+        # shellcheck disable=2009
         john_pid=$(ps -ef | grep -Ev 'sh -c|grep|xterm' | grep "[0-9][0-9]:[0-9][0-9]:[0-9][0-9] john --.*${bssid}" | awk '{ print $2 }')
     done
 }
@@ -647,7 +660,7 @@ function crack_handshake {
         maxlength="${biggest}"
     fi
     rule=$(get_rule)
-    echo >"${sessions_dir}/${bssid}.run"
+    echo -n >"${sessions_dir}/${bssid}.run"
     while ((i<${#john_rules[@]})) && [ ! -f "${sessions_dir}/${bssid}.cracked" ] && [ -f "${sessions_dir}/${bssid}.run" ]; do
         #~ xterm_pid=$(wmctrl -lp | grep "Cracking ${bssid}" | awk '{ print $3 }')
         if ! is_running "${bssid}"; then
@@ -656,11 +669,11 @@ function crack_handshake {
             # (hashcat option --advice-disable can be added)
             if [ -f "${sessions_dir}/${bssid}.rec" ]; then
                 case "${ext}" in
-                    cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
-                    22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                    hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                    PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                    JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid}" ;;
+                    cap ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                    22000 ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                    hccapx ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                    PMKID|pmkid ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid} | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                    JOHN|john ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --restore=${sessions_dir}/${bssid}" ;;
                 esac
             else
                 # if ${john_incr}.tested exist incremental is completed
@@ -691,25 +704,25 @@ function crack_handshake {
                     else
                         i=-1
                     fi
-                    i=$(($i+1))
-                    if (($i<${#john_rules[@]})); then
+                    i=$((i+1))
+                    if ((i<${#john_rules[@]})); then
                         echo "$i" >"${sessions_dir}/${bssid}.rule"
                     fi
 
                     # End of Rules?
-                    if (($i<${#john_rules[@]})); then
+                    if ((i<${#john_rules[@]})); then
                         # No. Proccess the rule starting new session
                         rule="${john_rules[$i]}" # get rule name
-                        [ ! -f "${sessions_dir}/${bssid}.${rule}.tested" ] && >"${sessions_dir}/${bssid}.${rule}.tested" # if *.tested don´t exist, create
+                        [ ! -f "${sessions_dir}/${bssid}.${rule}.tested" ] && echo -n >"${sessions_dir}/${bssid}.${rule}.tested" # if *.tested don´t exist, create
                         grep -E "^.{1,$maxlength}$" "${wordlist}" | grep -vxF -f "${sessions_dir}/${bssid}.${rule}.tested" >"${sessions_dir}/${bssid}.dic" # Create a dictionary excluding .tested words
                         sync
                         dic="${sessions_dir}/${bssid}.dic"
                         case "${ext}" in
-                            cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
-                            22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                            hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                            PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                            JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
+                            cap ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                            22000 ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                            hccapx ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                            PMKID|pmkid ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                            JOHN|john ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --wordlist=${dic} --rules=${rule} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
                         esac
                     else
                         # Yes. finish
@@ -719,13 +732,13 @@ function crack_handshake {
                 else
                     # Starting from john incremental mode (create *.rec)
                     case "${ext}" in
-                        cap ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
-                        22000 ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                        hccapx ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                        PMKID|pmkid ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores} --hwmon-temp-abort 80" ;;
-                        JOHN|john ) xterm -title "Cracking ${bssid}" $WINDOWCRACK -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
+                        cap ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | aircrack-ng -p ${cores} -w - -b ${bssid} -l ${sessions_dir}/${bssid}.cracked ${handshakes_dir}/${bssid}.cap" ;;
+                        22000 ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 22000 ${handshakes_dir}/${bssid}.22000 --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                        hccapx ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 2500 ${handshakes_dir}/${bssid}.hccapx --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                        PMKID|pmkid ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --stdout:63 | hashcat --hash-type 16800 ${handshakes_dir}/${bssid}.PMKID --outfile ${sessions_dir}/${bssid}.cracked --workload-profile ${cores}" ;;
+                        JOHN|john ) xterm -title "Cracking ${bssid}" -geometry 80x21-0+0 -bg "#000000" -fg "#FFFFFF" -e sh -c "john --session=${sessions_dir}/${bssid} --incremental:${john_incr} --format=wpapsk-opencl ${handshakes_dir}/${bssid}.john" ;;
                     esac
-                    [ ! -f "${sessions_dir}/${bssid}.${john_incr}.tested" ] && >"${sessions_dir}/${bssid}.${john_incr}.tested" # if .tested file don´t exist, create
+                    [ ! -f "${sessions_dir}/${bssid}.${john_incr}.tested" ] && echo -n >"${sessions_dir}/${bssid}.${john_incr}.tested" # if .tested file don´t exist, create
                 fi
             fi
         fi
@@ -744,14 +757,14 @@ function crack_handshake {
 }
 
 function statistics {
-    local bssid="$1"
-    local dict total
-    local rule=$(get_rule)
+    local bssid dict total rule
+    bssid="$1"
+    rule=$(get_rule)
     if [[ ! $rule == "$john_incr" ]]; then
         if [ -f "${sessions_dir}/${bssid}.rec" ]; then
             echo "Processing, please wait..."
             dict="${sessions_dir}/${bssid}.dic"
-            total="$(john --wordlist=${dict} --stdout --rules=${rule} 2>&1 | wc -l)"
+            total="$(john --wordlist="${dict}" --stdout --rules="${rule}" 2>&1 | wc -l)"
             echo "$total" >"${sessions_dir}/${bssid}.dic.total"
         fi
     fi
