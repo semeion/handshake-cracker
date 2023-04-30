@@ -70,11 +70,12 @@ sanitize_words()
     # convert format to ASCII removing acents
     iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
     # remove lines with ... at end
-#   grep -v '\.\.\.$' |
+    grep -v '\.\.\.$' |
     # remove some simbols
 #   tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
+    grep -o '\w*' |
     # convert to lower case
-#   tr '[:upper:]' '[:lower:]' |
+    tr '[:upper:]' '[:lower:]' |
     # sort removing duplicates
     sort -u
 }
@@ -149,7 +150,7 @@ if [ "$#" -gt 0 ]; then
         # https://dumps.wikimedia.org/ptwiktionary/latest/
         echo "Downloading https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz"
         wget --no-verbose --retry-connrefused --waitretry=1 --read-timeout=40 --timeout=30 -t 0 --continue -P "${wordlist_dir}/ptwiktionary" https://dumps.wikimedia.org/ptwiktionary/latest/ptwiktionary-latest-all-titles.gz
-        zcat "${wordlist_dir}"/ptwiktionary/ptwiktionary-latest-all-titles.gz | awk -F' ' '{print $2}' | sed -e 's/[\r\t]//g' | grep -v '[!~"$%&'\''()*+.;:=?^@/|#<>].*$' | grep -v '^[-,].*$' | grep -v '[0-9]' \
+        zcat "${wordlist_dir}"/ptwiktionary/ptwiktionary-latest-all-titles.gz | awk -F' ' '{print $2}' | sed -e 's/[\r\t]//g' | grep -v '[!~"$%&'\''()*+.;:=?^@/|#<>].*$' | grep -v '^[-,].*$' | grep -v '[0-9]' | \
         tr -d ' []|^?"*~#`!()<>:;.,=\+\-_\/\t\r'\' >"${wordlist_dir}/ptwiktionary-latest-all-titles.txt"
 
         # http://www.dicionario-aberto.net/estaticos/sources.html
