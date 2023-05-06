@@ -56,29 +56,36 @@ show_usage()
     exit 1
 }
 
+# sanitize_words()
+# {
+#     local filename="$1"
+#     from_encoding="$(file -bi "${filename}" | cut -f2 -d'=')"
+#     if [[ "${from_encoding}" == *"binary"* ]]; then
+#         return 0
+#     fi
+#     if [[ "${from_encoding}" == *"unknown"* ]]; then
+#         # from_encoding='UTF-8'                                          # maybe you want use
+#         from_encoding='ISO-8859-1'
+#     fi
+#     # convert format to ASCII removing acents
+#     iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
+#     # remove lines with ... at end
+#     grep -v '\.\.\.$' |
+#     # remove some simbols
+# #   tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
+#     grep -o '\w*' |
+#     # convert to lower case
+#     tr '[:upper:]' '[:lower:]' |
+#     # sort removing duplicates
+#     sort -u
+# }
+
 sanitize_words()
 {
     local filename="$1"
-    from_encoding="$(file -bi "${filename}" | cut -f2 -d'=')"
-    if [[ "${from_encoding}" == *"binary"* ]]; then
-        return 0
-    fi
-    if [[ "${from_encoding}" == *"unknown"* ]]; then
-        # from_encoding='UTF-8'                                          # maybe you want use
-        from_encoding='ISO-8859-1'
-    fi
-    # convert format to ASCII removing acents
-    iconv -f "${from_encoding}" -t ASCII//TRANSLIT "${filename}" |
-    # remove lines with ... at end
-    grep -v '\.\.\.$' |
-    # remove some simbols
-#   tr -d ' []|^?"*~#`!()<>:;.,=+-_\t\r'\' |
-    grep -o '\w*' |
-    # convert to lower case
-    tr '[:upper:]' '[:lower:]' |
-    # sort removing duplicates
-    sort -u
+    <"$filename" grep -o '\w*' | tr '[:upper:]' '[:lower:]' | iconv -t ASCII//TRANSLIT | sort -u
 }
+
 
 get_oui() {
         # http://standards-oui.ieee.org/oui.txt
